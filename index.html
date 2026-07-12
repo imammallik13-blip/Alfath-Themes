@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daftar Tema — Alfath Theme Store</title>
+<meta name="description" content="Jelajahi koleksi tema custom WhatsApp — wallpaper, font, dan paket ikon lengkap dari Alfath Theme Store.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/style.css">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/sample-data.js"></script>
+<script src="js/helpers.js"></script>
+<script src="js/supabase-client.js"></script>
+</head>
+
+<body>
+
+<div class="page">
+
+  <header class="topbar">
+    <div class="topbar__brand">
+      <h1 class="topbar__title">Alfath Theme Store</h1>
+      <span class="topbar__badge">Tema WA</span>
+    </div>
+    <p class="topbar__tagline">Wallpaper, font, dan ikon custom buat WhatsApp kamu</p>
+  </header>
+
+  <nav class="filter-bar" id="filterBar" aria-label="Filter kategori tema">
+    <!-- chip kategori dirender lewat JS -->
+  </nav>
+
+  <main class="catalog-grid" id="catalogGrid" aria-live="polite">
+    <!-- kartu tema / skeleton dirender lewat JS -->
+  </main>
+
+  <nav class="pagination" id="pagination" aria-label="Navigasi halaman katalog">
+    <!-- nomor halaman dirender lewat JS -->
+  </nav>
+
+</div>
+
+<!-- ============================================================
+     Bottom-sheet detail tema
+     ============================================================ -->
+<div class="sheet-backdrop" id="sheetBackdrop">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetName" style="position:relative;">
+    <button class="sheet__close" id="sheetClose" aria-label="Tutup detail tema">✕</button>
+    <div class="sheet__handle"></div>
+
+    <div class="sheet__media">
+      <div class="carousel" id="sheetCarousel">
+        <div class="carousel__track" id="sheetCarouselTrack"></div>
+        <span class="carousel__counter hidden" id="sheetCarouselCounter"></span>
+        <button type="button" class="carousel__nav carousel__nav--prev hidden" id="sheetCarouselPrev" aria-label="Gambar sebelumnya">‹</button>
+        <button type="button" class="carousel__nav carousel__nav--next hidden" id="sheetCarouselNext" aria-label="Gambar berikutnya">›</button>
+        <div class="carousel__dots" id="sheetCarouselDots"></div>
+      </div>
+    </div>
+
+    <h2 class="sheet__name" id="sheetName"></h2>
+
+    <div class="sheet__meta">
+      <span class="sheet__rating" id="sheetRating">
+        <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 1.5l2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L1.3 7.8l6.1-.7z"/></svg>
+        <span id="sheetRatingValue"></span>
+      </span>
+      <span id="sheetCategory"></span>
+    </div>
+
+    <p class="sheet__desc" id="sheetDesc"></p>
+
+    <h3 class="sheet__section-title">Isi paket</h3>
+    <div class="sheet__items" id="sheetItems"></div>
+
+    <div class="sheet__price-row">
+      <span class="sheet__price" id="sheetPrice"></span>
+      <span class="sheet__sold" id="sheetSold"></span>
+    </div>
+
+    <button class="btn-cta" id="sheetCheckoutBtn">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5.1-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1-.2.2-.7.8-.8 1-.2.2-.3.2-.5.1-.2-.1-1-.4-1.9-1.2-.7-.6-1.2-1.4-1.3-1.6-.2-.2 0-.4.1-.5.1-.1.2-.3.4-.4.1-.1.2-.2.2-.4.1-.2 0-.3 0-.5s-.6-1.5-.8-2c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.2.2-.9.9-.9 2.2 0 1.3.9 2.6 1.1 2.8.1.2 1.8 2.8 4.4 3.9.6.3 1.1.4 1.5.5.6.2 1.2.2 1.6.1.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.2-.2-.5-.3z"/></svg>
+      Lanjut ke Checkout
+    </button>
+  </div>
+</div>
+
+<!-- Fullscreen Image Viewer -->
+<div class="image-viewer" id="imageViewer">
+
+    <button class="image-viewer__close" id="viewerClose">
+        ✕
+    </button>
+
+    <button class="image-viewer__prev" id="viewerPrev">
+        ❮
+    </button>
+
+    <div class="image-viewer__stage">
+        <img id="viewerImg">
+        <div class="image-viewer__counter" id="viewerCounter"></div>
+    </div>
+
+    <button class="image-viewer__next" id="viewerNext">
+        ❯
+    </button>
+
+</div>
+
+<script>
+  const CATEGORY_ALL = "Semua";
+
+  const els = {
+    filterBar: document.getElementById("filterBar"),
+    grid: document.getElementById("catalogGrid"),
+    pagination: document.getElementById("pagination"),
+    sheetBackdrop: document.getElementById("sheetBackdrop"),
+    sheetClose: document.getElementById("sheetClose"),
+    carouselTrack: document.getElementById("sheetCarouselTrack"),
+    carouselDots: document.getElementById("sheetCarouselDots"),
+    carouselPrev: document.getElementById("sheetCarouselPrev"),
+    carouselNext: document.getElementById("sheetCarouselNext"),
+    carouselCounter: document.getElementById("sheetCarouselCounter"),
+    sheetName: document.getElementById("sheetName"),
+    sheetRatingValue: document.getElementById("sheetRatingValue"),
+    sheetCategory: document.getElementById("sheetCategory"),
+    sheetDesc: document.getElementById("sheetDesc"),
+    sheetItems: document.getElementById("sheetItems"),
+    sheetPrice: document.getElementById("sheetPrice"),
+    sheetSold: document.getElementById("sheetSold"),
+    sheetCheckoutBtn: document.getElementById("sheetCheckoutBtn"),
+    viewer: document.getElementById("imageViewer"),
+    viewerImg: document.getElementById("viewerImg"),
+    viewerClose: document.getElementById("viewerClose"),
+    viewerPrev: document.getElementById("viewerPrev"),
+    viewerNext: document.getElementById("viewerNext"),
+    viewerCounter: document.getElementById("viewerCounter"),
+  };
+
+  let allThemes = [];
+  let activeCategory = CATEGORY_ALL;
+  let currentPage = 1;
+  const PAGE_SIZE = 10;
+
+  init();
+
+  async function init() {
+    renderSkeletons(6);
+    try {
+      allThemes = await loadThemes();
+    } catch (err) {
+      // Jaga-jaga kalau ada error tak terduga di luar loadThemes()
+      // supaya halaman tidak nyangkut selamanya di skeleton.
+      console.error("[Alfath] init() gagal, menampilkan data contoh:", err);
+      allThemes = window.ALFATH_SAMPLE_THEMES;
+    }
+    currentPage = getPageFromURL();
+    renderFilterBar(allThemes);
+    renderGrid();
+    bindSheetEvents();
+  }
+
+  // ------------------------------------------------------------
+  // Data loading
+  // ------------------------------------------------------------
+  async function loadThemes() {
+    if (!isSupabaseConfigured()) {
+      console.warn(
+        "[Alfath] Supabase belum dikonfigurasi (js/config.js masih placeholder). Menampilkan data contoh."
+      );
+      return window.ALFATH_SAMPLE_THEMES;
+    }
+
+    try {
+      const supabase = getSupabaseClient();
+      const { data, error } = await supabase
+        .from("themes")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      if (!data || data.length === 0) return [];
+      return data;
+    } catch (err) {
+      console.error("[Alfath] Gagal mengambil data tema dari Supabase:", err);
+      return window.ALFATH_SAMPLE_THEMES;
+    }
+  }
+
+  // ------------------------------------------------------------
+  // Filter bar
+  // ------------------------------------------------------------
+  function renderFilterBar(themes) {
+    const categories = [CATEGORY_ALL, ...new Set(themes.map((t) => t.category).filter(Boolean))];
+
+    els.filterBar.innerHTML = categories
+      .map(
+        (cat) => `
+        <button class="chip ${cat === activeCategory ? "is-active" : ""}" data-category="${escapeAttr(cat)}">
+          ${escapeHtml(cat)}
+        </button>`
+      )
+      .join("");
+
+    els.filterBar.querySelectorAll(".chip").forEach((chip) => {
+      chip.addEventListener("click", () => {
+        activeCategory = chip.dataset.category;
+        currentPage = 1;
+        els.filterBar.querySelectorAll(".chip").forEach((c) => c.classList.remove("is-active"));
+        chip.classList.add("is-active");
+        renderGrid();
+      });
+    });
+  }
+
+  // ------------------------------------------------------------
+  // Grid kartu tema
+  // ------------------------------------------------------------
+  function renderGrid() {
+    const filtered =
+      activeCategory === CATEGORY_ALL
+        ? allThemes
+        : allThemes.filter((t) => t.category === activeCategory);
+
+    if (filtered.length === 0) {
+      els.grid.innerHTML = emptyStateMarkup();
+      els.pagination.innerHTML = "";
+      return;
+    }
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const pageItems = filtered.slice(start, start + PAGE_SIZE);
+
+    els.grid.innerHTML = pageItems.map((theme) => themeCardMarkup(theme)).join("");
+
+    els.grid.querySelectorAll(".theme-card").forEach((card) => {
+      card.addEventListener("click", () => {
+        const theme = pageItems.find((t) => String(t.id) === card.dataset.id);
+        if (theme) openSheet(theme);
+      });
+    });
+
+    renderPagination(totalPages);
+  }
+
+  // ------------------------------------------------------------
+  // Paginasi — 10 tema per halaman
+  // ------------------------------------------------------------
+  function renderPagination(totalPages) {
+    if (totalPages <= 1) {
+      els.pagination.innerHTML = "";
+      return;
+    }
+
+    const pageButtons = buildPageNumberList(currentPage, totalPages)
+      .map((item) =>
+        item === "..."
+          ? `<span class="pagination__ellipsis">…</span>`
+          : `<button class="pagination__btn ${item === currentPage ? "is-active" : ""}" data-page="${item}" aria-current="${item === currentPage ? "page" : "false"}">${item}</button>`
+      )
+      .join("");
+
+    els.pagination.innerHTML = `
+      <button class="pagination__nav" data-page="${currentPage - 1}" ${currentPage === 1 ? "disabled" : ""} aria-label="Halaman sebelumnya">‹</button>
+      ${pageButtons}
+      <button class="pagination__nav" data-page="${currentPage + 1}" ${currentPage === totalPages ? "disabled" : ""} aria-label="Halaman berikutnya">›</button>
+    `;
+
+    els.pagination.querySelectorAll("[data-page]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const page = Number(btn.dataset.page);
+        if (!page || page < 1 || page > totalPages || page === currentPage) return;
+        currentPage = page;
+        setPageInURL(currentPage);
+        renderGrid();
+        els.grid.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+  }
+
+  // Menghasilkan daftar nomor halaman dengan "..." kalau halamannya banyak
+  function buildPageNumberList(current, total) {
+    const delta = 1;
+    const range = [];
+    for (let i = 1; i <= total; i++) {
+      if (i === 1 || i === total || (i >= current - delta && i <= current + delta)) {
+        range.push(i);
+      }
+    }
+    const withDots = [];
+    let prev = 0;
+    for (const i of range) {
+      if (prev && i - prev > 1) withDots.push("...");
+      withDots.push(i);
+      prev = i;
+    }
+    return withDots;
+  }
+
+  function getPageFromURL() {
+    const params = new URLSearchParams(window.location.search);
+    const page = parseInt(params.get("page"), 10);
+    return page && page > 0 ? page : 1;
+  }
+
+  function setPageInURL(page) {
+    const params = new URLSearchParams(window.location.search);
+    if (page <= 1) {
+      params.delete("page");
+    } else {
+      params.set("page", page);
+    }
+    const query = params.toString();
+    const newUrl = window.location.pathname + (query ? `?${query}` : "");
+    window.history.pushState({}, "", newUrl);
+  }
+
+  function themeCardMarkup(theme) {
+    return `
+      <button class="theme-card" data-id="${escapeAttr(theme.id)}" aria-label="Lihat detail ${escapeAttr(theme.name)}">
+        <div class="theme-card__media">
+          <img src="${escapeAttr(theme.thumbnail_url)}" alt="Preview tema ${escapeAttr(theme.name)}" loading="lazy">
+          <span class="theme-card__ribbon">${escapeHtml(theme.category)}</span>
+          <span class="theme-card__seal">
+            <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 1.5l2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L1.3 7.8l6.1-.7z"/></svg>
+            <span>${formatRating(theme.rating)}</span>
+          </span>
+        </div>
+        <div class="theme-card__body">
+          <h3 class="theme-card__name">${escapeHtml(theme.name)}</h3>
+          <div class="theme-card__items">
+            ${(theme.package_items || []).map((item) => `<span class="theme-card__item-tag">${escapeHtml(item)}</span>`).join("")}
+          </div>
+          <div class="theme-card__footer">
+            <span class="theme-card__price">${formatRupiah(theme.price)}</span>
+            <span class="theme-card__sold">${theme.purchase_count || 0} terjual</span>
+          </div>
+        </div>
+      </button>`;
+  }
+
+  function renderSkeletons(count) {
+    els.grid.innerHTML = Array.from({ length: count })
+      .map(
+        () => `
+        <div class="skeleton-card">
+          <div class="skeleton-card__media"></div>
+          <div class="skeleton-card__body">
+            <div class="skeleton-line skeleton-line--wide"></div>
+            <div class="skeleton-line skeleton-line--narrow"></div>
+            <div class="skeleton-line skeleton-line--mid"></div>
+          </div>
+        </div>`
+      )
+      .join("");
+  }
+
+  function emptyStateMarkup() {
+    return `
+      <div class="empty-state">
+        <svg viewBox="0 0 100 100" aria-hidden="true">
+          <ellipse cx="50" cy="88" rx="26" ry="5" fill="#E7D6FB"/>
+          <path d="M30 70 Q30 40 50 38 Q70 40 70 70 Z" fill="#3B2A5E"/>
+          <circle cx="50" cy="42" r="20" fill="#3B2A5E"/>
+          <path d="M32 32 L26 14 L42 26 Z" fill="#3B2A5E"/>
+          <path d="M68 32 L74 14 L58 26 Z" fill="#3B2A5E"/>
+          <circle cx="43" cy="42" r="3.2" fill="#FFC857"/>
+          <circle cx="57" cy="42" r="3.2" fill="#FFC857"/>
+          <path d="M44 50 Q50 54 56 50" stroke="#FFC857" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <path d="M50 22 L53 30 L61 31 L55 36 L57 44 L50 39 L43 44 L45 36 L39 31 L47 30 Z" fill="#FFC857"/>
+        </svg>
+        <p class="empty-state__title">Belum ada tema di kategori ini</p>
+        <p class="empty-state__text">Coba pilih kategori lain, atau balik lagi nanti — koleksi baru selalu ditambahkan.</p>
+      </div>`;
+  }
+
+  // ------------------------------------------------------------
+  // Bottom-sheet detail
+  // ------------------------------------------------------------
+  let currentTheme = null;
+  let carouselImages = [];
+  let carouselIndex = 0;
+
+  function openSheet(theme) {
+    currentTheme = theme;
+    const images = Array.isArray(theme.preview_images) && theme.preview_images.length
+      ? theme.preview_images
+      : [theme.thumbnail_url];
+    renderCarousel(images);
+    els.sheetName.textContent = theme.name;
+    els.sheetRatingValue.textContent = formatRating(theme.rating);
+    els.sheetCategory.textContent = theme.category;
+    els.sheetDesc.textContent = theme.description || "Belum ada deskripsi untuk tema ini.";
+    els.sheetItems.innerHTML = (theme.package_items || [])
+      .map((item) => `<span class="sheet__item-tag">${escapeHtml(item)}</span>`)
+      .join("");
+    els.sheetPrice.textContent = formatRupiah(theme.price);
+    els.sheetSold.textContent = `${theme.purchase_count || 0} terjual`;
+
+    els.sheetBackdrop.classList.add("is-open");
+    document.body.style.overflow = "hidden";
+    els.sheetClose.focus();
+  }
+
+  function closeSheet() {
+    els.sheetBackdrop.classList.remove("is-open");
+    document.body.style.overflow = "";
+    currentTheme = null;
+  }
+
+  // ------------------------------------------------------------
+  // Carousel galeri gambar tema
+  // ------------------------------------------------------------
+  function renderCarousel(images) {
+    carouselImages = images && images.length ? images : [""];
+    carouselIndex = 0;
+
+    els.carouselTrack.innerHTML = carouselImages
+      .map((url, i) => `<img src="${escapeAttr(url)}" alt="Preview ${i + 1} tema ${escapeAttr(currentTheme ? currentTheme.name : "")}" loading="lazy">`)
+      .join("");
+    els.carouselTrack.style.transform = "translateX(0%)";
+
+    const multi = carouselImages.length > 1;
+    els.carouselPrev.classList.toggle("hidden", !multi);
+    els.carouselNext.classList.toggle("hidden", !multi);
+    els.carouselCounter.classList.toggle("hidden", !multi);
+
+    renderCarouselDots();
+    updateCarouselCounter();
+
+    els.carouselTrack.querySelectorAll("img").forEach((img, index) => {
+    img.style.cursor = "zoom-in";
+    img.addEventListener("click", () => {
+        openViewer(index);
+    });
+    });
+  }
+
+  function renderCarouselDots() {
+    if (carouselImages.length <= 1) {
+      els.carouselDots.innerHTML = "";
+      return;
+    }
+    els.carouselDots.innerHTML = carouselImages
+      .map((_, i) => `<button type="button" class="carousel__dot ${i === carouselIndex ? "is-active" : ""}" data-idx="${i}" aria-label="Lihat gambar ${i + 1}"></button>`)
+      .join("");
+    els.carouselDots.querySelectorAll(".carousel__dot").forEach((dot) => {
+      dot.addEventListener("click", () => goToSlide(Number(dot.dataset.idx)));
+    });
+  }
+
+  function updateCarouselCounter() {
+    if (carouselImages.length > 1) {
+      els.carouselCounter.textContent = `${carouselIndex + 1}/${carouselImages.length}`;
+    }
+  }
+
+  function goToSlide(idx) {
+    const total = carouselImages.length;
+    carouselIndex = (idx + total) % total;
+    els.carouselTrack.style.transform = `translateX(-${carouselIndex * 100}%)`;
+    renderCarouselDots();
+    updateCarouselCounter();
+  }
+
+  let viewerScale = 1;
+
+  function openViewer(index){
+    carouselIndex = index;
+    els.viewer.classList.add("show");
+    updateViewer();
+  }
+
+  function closeViewer(){
+    els.viewer.classList.remove("show");
+    viewerScale = 1;
+  }
+
+  function updateViewer(){
+    els.viewerImg.src = carouselImages[carouselIndex];
+    els.viewerImg.style.transform = `scale(${viewerScale})`;
+    els.viewerCounter.textContent =
+        `${carouselIndex+1}/${carouselImages.length}`;
+  }
+
+  function nextViewer(){
+    carouselIndex++;
+    if(carouselIndex>=carouselImages.length)
+        carouselIndex=0;
+    updateViewer();
+  }
+
+  function prevViewer(){
+    carouselIndex--;
+    if(carouselIndex<0)
+        carouselIndex=carouselImages.length-1;
+    updateViewer();
+  }
+
+  function bindCarouselEvents() {
+    els.carouselPrev.addEventListener("click", () => goToSlide(carouselIndex - 1));
+    els.carouselNext.addEventListener("click", () => goToSlide(carouselIndex + 1));
+
+    document.addEventListener("keydown", (e) => {
+      if (!els.sheetBackdrop.classList.contains("is-open") || carouselImages.length <= 1) return;
+      if (e.key === "ArrowLeft") goToSlide(carouselIndex - 1);
+      if (e.key === "ArrowRight") goToSlide(carouselIndex + 1);
+    });
+
+    let touchStartX = 0;
+    let touchDeltaX = 0;
+    els.carouselTrack.addEventListener("touchstart", (e) => {
+      touchStartX = e.touches[0].clientX;
+      touchDeltaX = 0;
+    }, { passive: true });
+    els.carouselTrack.addEventListener("touchmove", (e) => {
+      touchDeltaX = e.touches[0].clientX - touchStartX;
+    }, { passive: true });
+    els.carouselTrack.addEventListener("touchend", () => {
+      if (carouselImages.length <= 1) return;
+      if (touchDeltaX > 40) goToSlide(carouselIndex - 1);
+      else if (touchDeltaX < -40) goToSlide(carouselIndex + 1);
+    });
+  }
+
+  function bindSheetEvents() {
+    els.sheetClose.addEventListener("click", closeSheet);
+    els.sheetBackdrop.addEventListener("click", (e) => {
+      if (e.target === els.sheetBackdrop) closeSheet();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && els.sheetBackdrop.classList.contains("is-open")) closeSheet();
+    });
+    els.sheetCheckoutBtn.addEventListener("click", () => {
+      if (!currentTheme) return;
+      window.location.href = `checkout.html?id=${encodeURIComponent(currentTheme.id)}`;
+    });
+    bindCarouselEvents();
+    els.viewerClose.onclick = closeViewer;
+    els.viewerPrev.onclick = prevViewer;
+    els.viewerNext.onclick = nextViewer;
+    document.addEventListener("keydown",(e)=>{
+
+    if(!els.viewer.classList.contains("show"))
+        return;
+        switch(e.key){
+        case "Escape":
+            closeViewer();
+        break;
+        case "ArrowRight":
+            nextViewer();
+        break;
+        case "ArrowLeft":
+            prevViewer();
+        break;
+        }
+    });
+    }
+</script>
+
+</body>
+</html>

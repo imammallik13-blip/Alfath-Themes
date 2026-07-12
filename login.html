@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login Seller — Alfath Theme Store</title>
+<meta name="description" content="Login khusus seller Alfath Theme Store untuk mengelola katalog tema.">
+<meta name="robots" content="noindex">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/style.css">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/helpers.js"></script>
+<script src="js/supabase-client.js"></script>
+</head>
+<body>
+
+<div class="page page--narrow auth-page">
+
+  <a href="daftar-tema.html" class="back-link">
+    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M12.5 4.5L6 10l6.5 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Kembali ke Daftar Tema
+  </a>
+
+  <div class="auth-card">
+
+    <div class="auth-card__brand">
+      <span class="auth-card__icon" aria-hidden="true">
+        <svg viewBox="0 0 48 48" fill="none">
+          <circle cx="24" cy="24" r="22" fill="url(#authGrad)"/>
+          <path d="M24 13c-6.6 0-12 4.7-12 10.5 0 3.3 1.8 6.3 4.7 8.2-.2 1.4-.9 3-1.9 4.2 2.3-.2 4.3-1 5.9-2.1 1 .2 2.1.3 3.3.3 6.6 0 12-4.7 12-10.6S30.6 13 24 13z" fill="#fff"/>
+          <circle cx="19.5" cy="23.5" r="1.8" fill="#3B2A5E"/>
+          <circle cx="28.5" cy="23.5" r="1.8" fill="#3B2A5E"/>
+          <defs>
+            <linearGradient id="authGrad" x1="2" y1="2" x2="46" y2="46" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#FF8FB1"/>
+              <stop offset="1" stop-color="#B4A7F5"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </span>
+      <h1 class="auth-card__title">Alfath Theme Store</h1>
+      <p class="auth-card__subtitle">Login khusus seller untuk kelola katalog tema</p>
+    </div>
+
+    <!-- State: memeriksa sesi login -->
+    <div id="sessionCheck" class="auth-card__checking">
+      <span class="auth-spinner" aria-hidden="true"></span>
+      Memeriksa sesi login…
+    </div>
+
+    <!-- State: peringatan Supabase belum dikonfigurasi -->
+    <p id="configWarning" class="field-error hidden">
+      Supabase belum terhubung dengan benar. Cek <code>js/config.js</code> dulu ya.
+    </p>
+
+    <!-- Form login -->
+    <form id="loginForm" class="hidden" novalidate>
+
+      <div class="field">
+        <label for="loginEmail">Email</label>
+        <input type="email" id="loginEmail" name="email" placeholder="seller@email.com" autocomplete="username" required>
+      </div>
+
+      <div class="field">
+        <label for="loginPassword">Password</label>
+        <div class="password-field">
+          <input type="password" id="loginPassword" name="password" placeholder="Masukkan password" autocomplete="current-password" required>
+          <button type="button" class="password-field__toggle" id="togglePassword" aria-label="Tampilkan password">
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M1.5 10S4.5 4 10 4s8.5 6 8.5 6-3 6-8.5 6-8.5-6-8.5-6z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+              <circle cx="10" cy="10" r="2.4" stroke="currentColor" stroke-width="1.6"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <p class="field-error hidden" id="loginError"></p>
+
+      <button type="submit" class="btn-cta" id="loginSubmitBtn">
+        <span id="loginSubmitLabel">Masuk ke Dashboard</span>
+      </button>
+    </form>
+
+  </div>
+
+</div>
+
+<script>
+  const els = {
+    sessionCheck: document.getElementById("sessionCheck"),
+    configWarning: document.getElementById("configWarning"),
+    form: document.getElementById("loginForm"),
+    email: document.getElementById("loginEmail"),
+    password: document.getElementById("loginPassword"),
+    togglePassword: document.getElementById("togglePassword"),
+    error: document.getElementById("loginError"),
+    submitBtn: document.getElementById("loginSubmitBtn"),
+    submitLabel: document.getElementById("loginSubmitLabel"),
+  };
+
+  const REDIRECT_TARGET = "dashboard-seller.html";
+
+  init();
+
+  async function init() {
+    if (!isSupabaseConfigured()) {
+      els.sessionCheck.classList.add("hidden");
+      els.configWarning.classList.remove("hidden");
+      els.form.classList.remove("hidden");
+      bindEvents();
+      return;
+    }
+
+    try {
+      const supabase = getSupabaseClient();
+      const { data, error } = await supabase.auth.getSession();
+      if (error) throw error;
+
+      if (data.session) {
+        window.location.href = REDIRECT_TARGET;
+        return;
+      }
+    } catch (err) {
+      console.error("[Alfath] Gagal memeriksa sesi login:", err);
+    }
+
+    els.sessionCheck.classList.add("hidden");
+    els.form.classList.remove("hidden");
+    bindEvents();
+  }
+
+  function bindEvents() {
+    els.form.addEventListener("submit", handleSubmit);
+    els.togglePassword.addEventListener("click", togglePasswordVisibility);
+    [els.email, els.password].forEach((input) => {
+      input.addEventListener("input", () => hideError());
+    });
+  }
+
+  function togglePasswordVisibility() {
+    const isHidden = els.password.type === "password";
+    els.password.type = isHidden ? "text" : "password";
+    els.togglePassword.setAttribute("aria-label", isHidden ? "Sembunyikan password" : "Tampilkan password");
+    els.togglePassword.classList.toggle("is-active", isHidden);
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+
+    const email = els.email.value.trim();
+    const password = els.password.value;
+
+    if (!email || !password) {
+      showError("Mohon isi email dan password terlebih dahulu ya.");
+      (!email ? els.email : els.password).focus();
+      return;
+    }
+
+    if (!isSupabaseConfigured()) {
+      showError("Supabase belum dikonfigurasi, jadi login belum bisa diproses.");
+      return;
+    }
+
+    setLoading(true);
+    hideError();
+
+    try {
+      const supabase = getSupabaseClient();
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+      if (error) throw error;
+
+      window.location.href = REDIRECT_TARGET;
+    } catch (err) {
+      console.error("[Alfath] Login gagal:", err);
+      showError(translateAuthError(err));
+      setLoading(false);
+    }
+  }
+
+  function translateAuthError(err) {
+    const msg = (err && err.message) || "";
+    if (/invalid login credentials/i.test(msg)) {
+      return "Email atau password salah. Coba periksa lagi ya.";
+    }
+    if (/email not confirmed/i.test(msg)) {
+      return "Email belum dikonfirmasi. Cek inbox email kamu dulu.";
+    }
+    if (/network/i.test(msg)) {
+      return "Koneksi bermasalah. Coba lagi sebentar ya.";
+    }
+    return "Login gagal. Coba lagi ya.";
+  }
+
+  function showError(message) {
+    els.error.textContent = message;
+    els.error.classList.remove("hidden");
+  }
+
+  function hideError() {
+    els.error.classList.add("hidden");
+  }
+
+  function setLoading(isLoading) {
+    els.submitBtn.disabled = isLoading;
+    els.submitLabel.textContent = isLoading ? "Memproses…" : "Masuk ke Dashboard";
+  }
+</script>
+
+</body>
+</html>

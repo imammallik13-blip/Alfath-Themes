@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Seller — Alfath Theme Store</title>
+<meta name="description" content="Kelola katalog tema WhatsApp Alfath Theme Store — tambah, edit, hapus, dan pantau performa penjualan.">
+<meta name="robots" content="noindex">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/style.css">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/sample-data.js"></script>
+<script src="js/helpers.js"></script>
+<script src="js/supabase-client.js"></script>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- ============================================================
+       State: memeriksa sesi login
+       ============================================================ -->
+  <div id="sessionCheck" class="auth-card__checking" style="padding-top:80px;">
+    <span class="auth-spinner" aria-hidden="true"></span>
+    Memeriksa sesi login…
+  </div>
+
+  <div id="dashboardContent" class="hidden">
+
+    <header class="dash-topbar">
+      <div class="topbar__brand" style="flex-direction:column; align-items:flex-start; gap:2px;">
+        <h1 class="topbar__title" style="font-size:22px;">Dashboard Seller</h1>
+        <p class="topbar__tagline">Kelola katalog tema kamu di sini</p>
+      </div>
+      <div class="dash-topbar__user">
+        <span class="dash-topbar__avatar" id="userAvatar">?</span>
+        <div>
+          <div class="dash-topbar__email" id="userEmail">—</div>
+          <button type="button" class="btn-logout" id="logoutBtn">
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M7.5 17.5H4.2a1.2 1.2 0 0 1-1.2-1.2V3.7A1.2 1.2 0 0 1 4.2 2.5h3.3M13.5 14l4-4-4-4M17.3 10H7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Keluar
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <p id="demoBanner" class="demo-banner hidden">
+      Mode demo — Supabase belum terkonfigurasi. Perubahan yang kamu buat di sini hanya tersimpan sementara di browser dan tidak akan disimpan permanen.
+    </p>
+
+    <!-- Ringkasan performa -->
+    <section class="stats-grid">
+      <div class="stat-card">
+        <span class="stat-card__icon stat-card__icon--periwinkle">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="3" y="3" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="11" y="3" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="3" y="11" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="11" y="11" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.6"/></svg>
+        </span>
+        <span class="stat-card__value" id="statTotalTema">0</span>
+        <span class="stat-card__label">Total Tema</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-card__icon stat-card__icon--mint">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M3 10l5 5 9-10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        <span class="stat-card__value" id="statTotalTerjual">0</span>
+        <span class="stat-card__label">Total Terjual</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-card__icon stat-card__icon--peony">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 2v16M14.5 5.5c0-1.4-1.7-2.5-4-2.5-2.5 0-4.5 1.2-4.5 3s1.6 2.6 4.4 3.1c2.9.5 4.6 1.3 4.6 3.2 0 1.9-2 3.2-4.5 3.2-2.3 0-4-1.1-4-2.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </span>
+        <span class="stat-card__value" id="statOmzet">Rp0</span>
+        <span class="stat-card__label">Estimasi Omzet</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-card__icon stat-card__icon--gold">
+          <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 1.5l2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L1.3 7.8l6.1-.7z"/></svg>
+        </span>
+        <span class="stat-card__value" id="statRating">0.0</span>
+        <span class="stat-card__label">Rating Rata-rata</span>
+      </div>
+    </section>
+
+    <!-- Toolbar -->
+    <div class="dash-toolbar">
+      <h2 class="dash-toolbar__title">Kelola Tema</h2>
+      <button type="button" class="btn-add" id="openAddModalBtn">
+        <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Tambah Tema
+      </button>
+    </div>
+
+    <!-- List tema -->
+    <div class="manage-list" id="manageList"></div>
+
+  </div>
+
+</div>
+
+<!-- ============================================================
+     Modal: Tambah / Edit Tema
+     ============================================================ -->
+<div class="modal-backdrop" id="themeModalBackdrop">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="themeModalTitle">
+    <button class="modal__close" id="themeModalClose" aria-label="Tutup">✕</button>
+    <h2 class="modal__title" id="themeModalTitle">Tambah Tema</h2>
+
+    <form id="themeForm" novalidate>
+
+      <div class="field">
+        <label for="fName">Nama Tema</label>
+        <input type="text" id="fName" placeholder="mis. Senja Ungu Aesthetic" required>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="fCategory">Kategori</label>
+          <input type="text" id="fCategory" list="categoryOptions" placeholder="mis. Wallpaper" required>
+          <datalist id="categoryOptions">
+            <option value="Wallpaper">
+            <option value="Font">
+            <option value="Ikon">
+            <option value="Paket Lengkap">
+          </datalist>
+        </div>
+        <div class="field">
+          <label for="fPrice">Harga (Rp)</label>
+          <input type="number" id="fPrice" min="0" step="500" placeholder="25000" required>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="fRating">Rating (0–5)</label>
+          <input type="number" id="fRating" min="0" max="5" step="0.1" placeholder="4.8" required>
+        </div>
+        <div class="field">
+          <label for="fSold">Jumlah Terjual</label>
+          <input type="number" id="fSold" min="0" step="1" placeholder="0">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="fTagText">Isi Paket</label>
+        <div class="tag-input" id="tagInput">
+          <input type="text" id="fTagText" placeholder="ketik lalu tekan Enter…">
+        </div>
+        <span class="field__hint--tag">Contoh: Wallpaper, Font, Set Ikon — tekan Enter atau koma untuk menambah</span>
+      </div>
+
+      <div class="field">
+        <label for="fDesc">Deskripsi</label>
+        <textarea id="fDesc" placeholder="Ceritakan sedikit tentang tema ini…"></textarea>
+      </div>
+
+      <div class="field">
+        <label>Gambar Preview</label>
+        <div class="image-upload" style="align-items:flex-start; flex-direction:column; gap:10px;">
+          <div id="imagePreviewGrid" class="image-upload__grid"></div>
+          <div>
+            <button type="button" class="image-upload__btn" id="chooseImageBtn">
+              <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 13.5V3.5M10 3.5L6 7.5M10 3.5l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.5 13.5v2.2a1.3 1.3 0 0 0 1.3 1.3h10.4a1.3 1.3 0 0 0 1.3-1.3v-2.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+              Tambah Gambar
+            </button>
+            <p class="image-upload__info">JPG/PNG/WebP, maks 3MB per gambar, maks 5 gambar. Gambar pertama jadi cover di katalog.</p>
+          </div>
+          <input type="file" id="fImage" accept="image/png,image/jpeg,image/webp" class="hidden" multiple>
+        </div>
+      </div>
+
+      <p class="field-error hidden" id="formError"></p>
+
+      <div class="modal__actions">
+        <button type="button" class="btn-secondary" id="themeModalCancel">Batal</button>
+        <button type="submit" class="btn-cta" id="themeSubmitBtn" style="box-shadow:none;">
+          <span id="themeSubmitLabel">Simpan Tema</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============================================================
+     Modal: Konfirmasi (Hapus / Tandai Terjual)
+     ============================================================ -->
+<div class="modal-backdrop" id="confirmModalBackdrop">
+  <div class="modal confirm-modal">
+    <div class="confirm-modal__icon" id="confirmIconWrap">
+      <svg id="confirmIconSvg" viewBox="0 0 24 24" fill="none" aria-hidden="true"></svg>
+    </div>
+    <p class="confirm-modal__title" id="confirmTitle">Yakin?</p>
+    <p class="confirm-modal__text" id="confirmText">Tindakan ini tidak bisa dibatalkan.</p>
+    <div class="confirm-modal__actions">
+      <button type="button" class="btn-secondary" id="confirmCancelBtn">Batal</button>
+      <button type="button" class="btn-danger hidden" id="confirmDangerBtn">Ya, Hapus</button>
+      <button type="button" class="btn-success hidden" id="confirmSuccessBtn">Ya, Tandai Terjual</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast">
+  <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M3 10l5 5 9-10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <span id="toastText"></span>
+</div>
+
+<script>
+  const REDIRECT_LOGIN = "login.html";
+  const STORAGE_BUCKET = "theme-previews";
+
+  const els = {
+    sessionCheck: document.getElementById("sessionCheck"),
+    content: document.getElementById("dashboardContent"),
+    userAvatar: document.getElementById("userAvatar"),
+    userEmail: document.getElementById("userEmail"),
+    logoutBtn: document.getElementById("logoutBtn"),
+    demoBanner: document.getElementById("demoBanner"),
+
+    statTotalTema: document.getElementById("statTotalTema"),
+    statTotalTerjual: document.getElementById("statTotalTerjual"),
+    statOmzet: document.getElementById("statOmzet"),
+    statRating: document.getElementById("statRating"),
+
+    openAddModalBtn: document.getElementById("openAddModalBtn"),
+    manageList: document.getElementById("manageList"),
+
+    // theme modal
+    themeModalBackdrop: document.getElementById("themeModalBackdrop"),
+    themeModalClose: document.getElementById("themeModalClose"),
+    themeModalCancel: document.getElementById("themeModalCancel"),
+    themeModalTitle: document.getElementById("themeModalTitle"),
+    themeForm: document.getElementById("themeForm"),
+    fName: document.getElementById("fName"),
+    fCategory: document.getElementById("fCategory"),
+    fPrice: document.getElementById("fPrice"),
+    fRating: document.getElementById("fRating"),
+    fSold: document.getElementById("fSold"),
+    fDesc: document.getElementById("fDesc"),
+    fImage: document.getElementById("fImage"),
+    tagInput: document.getElementById("tagInput"),
+    fTagText: document.getElementById("fTagText"),
+    chooseImageBtn: document.getElementById("chooseImageBtn"),
+    imagePreviewGrid: document.getElementById("imagePreviewGrid"),
+    formError: document.getElementById("formError"),
+    themeSubmitBtn: document.getElementById("themeSubmitBtn"),
+    themeSubmitLabel: document.getElementById("themeSubmitLabel"),
+
+    // confirm modal
+    confirmModalBackdrop: document.getElementById("confirmModalBackdrop"),
+    confirmIconWrap: document.getElementById("confirmIconWrap"),
+    confirmIconSvg: document.getElementById("confirmIconSvg"),
+    confirmTitle: document.getElementById("confirmTitle"),
+    confirmText: document.getElementById("confirmText"),
+    confirmCancelBtn: document.getElementById("confirmCancelBtn"),
+    confirmDangerBtn: document.getElementById("confirmDangerBtn"),
+    confirmSuccessBtn: document.getElementById("confirmSuccessBtn"),
+
+    toast: document.getElementById("toast"),
+    toastText: document.getElementById("toastText"),
+  };
+
+  const ICONS = {
+    trash: `<path d="M4 6h16M9 6V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V6m2 0v13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V6h10z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>`,
+    check: `<path d="M4 12l6 6L20 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`,
+  };
+
+  let allThemes = [];
+  let demoMode = false;
+  let currentUser = null;
+  let editingThemeId = null;
+  let tagItems = [];
+  let existingImages = [];  // URL gambar lama (mode edit)
+  let selectedFiles = [];   // File baru yang mau diupload
+  const MAX_IMAGES = 5;
+  let pendingAction = null; // { type: 'delete'|'sold', id }
+
+  init();
+
+  // ==============================================================
+  // Init & auth guard
+  // ==============================================================
+  async function init() {
+    demoMode = !isSupabaseConfigured();
+
+    if (demoMode) {
+      console.warn("[Alfath] Supabase belum dikonfigurasi. Dashboard berjalan dalam mode demo.");
+      currentUser = { email: "demo@alfath.local" };
+      allThemes = JSON.parse(JSON.stringify(window.ALFATH_SAMPLE_THEMES || []));
+      els.demoBanner.classList.remove("hidden");
+      showDashboard();
+      return;
+    }
+
+    try {
+      const supabase = getSupabaseClient();
+      const { data, error } = await supabase.auth.getSession();
+      if (error) throw error;
+
+      if (!data.session) {
+        window.location.href = REDIRECT_LOGIN;
+        return;
+      }
+      currentUser = data.session.user;
+
+      supabase.auth.onAuthStateChange((event) => {
+        if (event === "SIGNED_OUT") window.location.href = REDIRECT_LOGIN;
+      });
+    } catch (err) {
+      console.error("[Alfath] Gagal memeriksa sesi login:", err);
+      window.location.href = REDIRECT_LOGIN;
+      return;
+    }
+
+    try {
+      allThemes = await fetchThemes();
+    } catch (err) {
+      console.error("[Alfath] Gagal memuat data tema:", err);
+      allThemes = [];
+      showToast("Gagal memuat data tema dari server.", true);
+    }
+
+    showDashboard();
+  }
+
+  function showDashboard() {
+    els.sessionCheck.classList.add("hidden");
+    els.content.classList.remove("hidden");
+    renderUser();
+    renderAll();
+    bindEvents();
+  }
+
+  function renderUser() {
+    const email = currentUser.email || "seller";
+    els.userEmail.textContent = email;
+    els.userAvatar.textContent = email.charAt(0).toUpperCase();
+  }
+
+  // ==============================================================
+  // Data fetching
+  // ==============================================================
+  async function fetchThemes() {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from("themes")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data || [];
+  }
+
+  // ==============================================================
+  // Render: stats + list
+  // ==============================================================
+  function renderAll() {
+    renderStats();
+    renderList();
+  }
+
+  function renderStats() {
+    const total = allThemes.length;
+    const totalSold = allThemes.reduce((sum, t) => sum + (Number(t.purchase_count) || 0), 0);
+    const omzet = allThemes.reduce((sum, t) => sum + (Number(t.purchase_count) || 0) * (Number(t.price) || 0), 0);
+    const avgRating = total ? allThemes.reduce((sum, t) => sum + (Number(t.rating) || 0), 0) / total : 0;
+
+    els.statTotalTema.textContent = total;
+    els.statTotalTerjual.textContent = totalSold;
+    els.statOmzet.textContent = formatRupiah(omzet);
+    els.statRating.textContent = formatRating(avgRating);
+  }
+
+  function renderList() {
+    if (allThemes.length === 0) {
+      els.manageList.innerHTML = `
+        <div class="empty-state" style="padding:40px 20px;">
+          <svg viewBox="0 0 100 100" aria-hidden="true">
+            <ellipse cx="50" cy="88" rx="26" ry="5" fill="#E7D6FB"/>
+            <path d="M30 70 Q30 40 50 38 Q70 40 70 70 Z" fill="#3B2A5E"/>
+            <circle cx="50" cy="42" r="20" fill="#3B2A5E"/>
+            <path d="M32 32 L26 14 L42 26 Z" fill="#3B2A5E"/>
+            <path d="M68 32 L74 14 L58 26 Z" fill="#3B2A5E"/>
+            <circle cx="43" cy="42" r="3.2" fill="#FFC857"/>
+            <circle cx="57" cy="42" r="3.2" fill="#FFC857"/>
+            <path d="M44 50 Q50 54 56 50" stroke="#FFC857" stroke-width="2" fill="none" stroke-linecap="round"/>
+          </svg>
+          <p class="empty-state__title">Belum ada tema</p>
+          <p class="empty-state__text">Yuk tambah tema pertama kamu lewat tombol "Tambah Tema" di atas.</p>
+        </div>`;
+      return;
+    }
+
+    els.manageList.innerHTML = allThemes.map((theme) => manageCardMarkup(theme)).join("");
+
+    els.manageList.querySelectorAll("[data-edit]").forEach((btn) => {
+      btn.addEventListener("click", () => openThemeModal(findTheme(btn.dataset.edit)));
+    });
+    els.manageList.querySelectorAll("[data-delete]").forEach((btn) => {
+      btn.addEventListener("click", () => confirmDelete(btn.dataset.delete));
+    });
+    els.manageList.querySelectorAll("[data-sold]").forEach((btn) => {
+      btn.addEventListener("click", () => confirmMarkSold(btn.dataset.sold));
+    });
+  }
+
+  function manageCardMarkup(theme) {
+    return `
+      <div class="manage-card">
+        <div class="manage-card__media">
+          <img src="${escapeAttr(theme.thumbnail_url || '')}" alt="Preview tema ${escapeAttr(theme.name)}" loading="lazy">
+        </div>
+        <div class="manage-card__body">
+          <h3 class="manage-card__name">${escapeHtml(theme.name)}</h3>
+          <div class="manage-card__meta">
+            <span class="manage-card__ribbon">${escapeHtml(theme.category || '-')}</span>
+            <span class="price">${formatRupiah(theme.price)}</span>
+            <span class="rating">
+              <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 1.5l2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L1.3 7.8l6.1-.7z"/></svg>
+              ${formatRating(theme.rating)}
+            </span>
+            <span>${theme.purchase_count || 0} terjual</span>
+          </div>
+        </div>
+        <div class="manage-card__actions">
+          <div class="manage-card__actions-row">
+            <button type="button" class="icon-btn icon-btn--edit" data-edit="${escapeAttr(theme.id)}" aria-label="Edit tema">
+              <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M13.5 3.5l3 3L6 17H3v-3L13.5 3.5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+            </button>
+            <button type="button" class="icon-btn icon-btn--delete" data-delete="${escapeAttr(theme.id)}" aria-label="Hapus tema">
+              <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 6h12M8 6V4.5A1 1 0 0 1 9 3.5h2a1 1 0 0 1 1 1V6m1.5 0v10a1.5 1.5 0 0 1-1.5 1.5H7A1.5 1.5 0 0 1 5.5 16V6h9z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+          <button type="button" class="icon-btn icon-btn--sold" data-sold="${escapeAttr(theme.id)}" aria-label="Tandai terjual" title="Tandai Terjual">
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 10l4 4 8-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+      </div>`;
+  }
+
+  function findTheme(id) {
+    return allThemes.find((t) => String(t.id) === String(id)) || null;
+  }
+
+  // ==============================================================
+  // Theme modal (Tambah / Edit)
+  // ==============================================================
+  function openThemeModal(theme) {
+    editingThemeId = theme ? theme.id : null;
+    selectedFiles = [];
+    existingImages = theme && Array.isArray(theme.preview_images) && theme.preview_images.length
+      ? [...theme.preview_images]
+      : (theme && theme.thumbnail_url ? [theme.thumbnail_url] : []);
+    tagItems = theme && Array.isArray(theme.package_items) ? [...theme.package_items] : [];
+
+    els.themeModalTitle.textContent = theme ? "Edit Tema" : "Tambah Tema";
+    els.themeSubmitLabel.textContent = theme ? "Simpan Perubahan" : "Simpan Tema";
+
+    els.fName.value = theme ? theme.name || "" : "";
+    els.fCategory.value = theme ? theme.category || "" : "";
+    els.fPrice.value = theme ? theme.price ?? "" : "";
+    els.fRating.value = theme ? theme.rating ?? "" : "";
+    els.fSold.value = theme ? theme.purchase_count ?? 0 : 0;
+    els.fDesc.value = theme ? theme.description || "" : "";
+    els.fImage.value = "";
+    els.formError.classList.add("hidden");
+
+    renderTags();
+    renderImagePreview();
+
+    els.themeModalBackdrop.classList.add("is-open");
+    document.body.style.overflow = "hidden";
+    els.fName.focus();
+  }
+
+  function closeThemeModal() {
+    els.themeModalBackdrop.classList.remove("is-open");
+    document.body.style.overflow = "";
+    editingThemeId = null;
+  }
+
+  function renderTags() {
+    els.tagInput.querySelectorAll(".tag-input__chip").forEach((chip) => chip.remove());
+    tagItems.forEach((item, idx) => {
+      const chip = document.createElement("span");
+      chip.className = "tag-input__chip";
+      chip.innerHTML = `${escapeHtml(item)} <button type="button" data-idx="${idx}" aria-label="Hapus ${escapeAttr(item)}">✕</button>`;
+      chip.querySelector("button").addEventListener("click", () => {
+        tagItems.splice(idx, 1);
+        renderTags();
+      });
+      els.tagInput.insertBefore(chip, els.fTagText);
+    });
+  }
+
+  function addTagFromInput() {
+    const val = els.fTagText.value.trim().replace(/,+$/, "").trim();
+    if (val) {
+      tagItems.push(val);
+      renderTags();
+    }
+    els.fTagText.value = "";
+  }
+
+  function renderImagePreview() {
+    const grid = els.imagePreviewGrid;
+    grid.innerHTML = "";
+
+    if (existingImages.length === 0 && selectedFiles.length === 0) {
+      grid.innerHTML = `
+        <div class="image-upload__preview">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2.5" stroke="currentColor" stroke-width="1.6"/><circle cx="8.5" cy="9.5" r="1.6" stroke="currentColor" stroke-width="1.6"/><path d="M21 15l-5.5-5-9.5 9" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+        </div>`;
+      return;
+    }
+
+    existingImages.forEach((url, idx) => {
+      grid.appendChild(makeImageThumb(url, idx === 0, () => {
+        existingImages.splice(idx, 1);
+        renderImagePreview();
+      }));
+    });
+
+    selectedFiles.forEach((file, idx) => {
+      const url = URL.createObjectURL(file);
+      const isCover = existingImages.length === 0 && idx === 0;
+      grid.appendChild(makeImageThumb(url, isCover, () => {
+        selectedFiles.splice(idx, 1);
+        renderImagePreview();
+      }));
+    });
+  }
+
+  function makeImageThumb(url, isCover, onRemove) {
+    const div = document.createElement("div");
+    div.className = "image-upload__thumb" + (isCover ? " image-upload__thumb--cover" : "");
+    div.innerHTML = `<img src="${escapeAttr(url)}" alt="Preview tema"><button type="button" aria-label="Hapus gambar ini">✕</button>`;
+    div.querySelector("button").addEventListener("click", onRemove);
+    return div;
+  }
+
+  async function handleThemeFormSubmit(e) {
+    e.preventDefault();
+    els.formError.classList.add("hidden");
+    addTagFromInput();
+
+    const name = els.fName.value.trim();
+    const category = els.fCategory.value.trim();
+    const price = Number(els.fPrice.value);
+    const rating = Number(els.fRating.value);
+    const purchase_count = Number(els.fSold.value) || 0;
+    const description = els.fDesc.value.trim();
+
+    if (!name || !category || !els.fPrice.value || !els.fRating.value) {
+      showFormError("Mohon lengkapi nama, kategori, harga, dan rating.");
+      return;
+    }
+    if (rating < 0 || rating > 5) {
+      showFormError("Rating harus di antara 0 sampai 5.");
+      return;
+    }
+    if (existingImages.length + selectedFiles.length === 0) {
+      showFormError("Tambahkan minimal 1 gambar preview.");
+      return;
+    }
+    if (selectedFiles.some((f) => f.size > 3 * 1024 * 1024)) {
+      showFormError("Ada gambar yang ukurannya lebih dari 3MB.");
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const uploadedUrls = [];
+      for (const file of selectedFiles) {
+        uploadedUrls.push(await uploadImage(file));
+      }
+      const preview_images = [...existingImages, ...uploadedUrls];
+      const thumbnail_url = preview_images[0] || "https://images.unsplash.com/photo-1499346030926-9a72daac6c63?w=600&h=450&fit=crop";
+
+      const payload = {
+        name, category, price, rating, purchase_count, description,
+        package_items: tagItems, thumbnail_url, preview_images,
+      };
+
+      if (demoMode) {
+        if (editingThemeId) {
+          allThemes = allThemes.map((t) => (String(t.id) === String(editingThemeId) ? { ...t, ...payload } : t));
+        } else {
+          allThemes.unshift({ id: "demo-" + Date.now(), created_at: new Date().toISOString(), ...payload });
+        }
+      } else {
+        const supabase = getSupabaseClient();
+        if (editingThemeId) {
+          const { error } = await supabase.from("themes").update(payload).eq("id", editingThemeId);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase.from("themes").insert(payload);
+          if (error) throw error;
+        }
+        allThemes = await fetchThemes();
+      }
+
+      renderAll();
+      closeThemeModal();
+      showToast(editingThemeId ? "Perubahan tema disimpan." : "Tema baru berhasil ditambahkan.");
+    } catch (err) {
+      console.error("[Alfath] Gagal menyimpan tema:", err);
+      showFormError("Gagal menyimpan tema. Coba lagi ya.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function uploadImage(file) {
+    const supabase = getSupabaseClient();
+    const ext = file.name.split(".").pop();
+    const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage.from(STORAGE_BUCKET).upload(path, file, {
+      cacheControl: "3600",
+      upsert: false,
+    });
+    if (uploadError) throw uploadError;
+
+    const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+    return data.publicUrl;
+  }
+
+  function showFormError(msg) {
+    els.formError.textContent = msg;
+    els.formError.classList.remove("hidden");
+  }
+
+  function setSaving(isSaving) {
+    els.themeSubmitBtn.disabled = isSaving;
+    els.themeSubmitLabel.innerHTML = isSaving
+      ? `<span class="btn-cta__spinner" style="display:inline-block; vertical-align:middle; margin-right:6px;"></span>Menyimpan…`
+      : (editingThemeId ? "Simpan Perubahan" : "Simpan Tema");
+  }
+
+  // ==============================================================
+  // Confirm modal (Hapus / Tandai Terjual)
+  // ==============================================================
+  function confirmDelete(id) {
+    const theme = findTheme(id);
+    if (!theme) return;
+    pendingAction = { type: "delete", id };
+
+    els.confirmIconWrap.className = "confirm-modal__icon confirm-modal__icon--danger";
+    els.confirmIconSvg.innerHTML = ICONS.trash;
+    els.confirmTitle.textContent = "Hapus tema ini?";
+    els.confirmText.textContent = `"${theme.name}" akan dihapus permanen dari katalog. Tindakan ini tidak bisa dibatalkan.`;
+    els.confirmDangerBtn.classList.remove("hidden");
+    els.confirmSuccessBtn.classList.add("hidden");
+
+    openConfirmModal();
+  }
+
+  function confirmMarkSold(id) {
+    const theme = findTheme(id);
+    if (!theme) return;
+    pendingAction = { type: "sold", id };
+
+    els.confirmIconWrap.className = "confirm-modal__icon confirm-modal__icon--success";
+    els.confirmIconSvg.innerHTML = ICONS.check;
+    els.confirmTitle.textContent = "Tandai sudah terjual?";
+    els.confirmText.textContent = `Jumlah terjual "${theme.name}" akan bertambah jadi ${((theme.purchase_count || 0) + 1)}.`;
+    els.confirmDangerBtn.classList.add("hidden");
+    els.confirmSuccessBtn.classList.remove("hidden");
+
+    openConfirmModal();
+  }
+
+  function openConfirmModal() {
+    els.confirmModalBackdrop.classList.add("is-open");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeConfirmModal() {
+    els.confirmModalBackdrop.classList.remove("is-open");
+    document.body.style.overflow = "";
+    pendingAction = null;
+  }
+
+  async function handleConfirmed() {
+    if (!pendingAction) return;
+    const { type, id } = pendingAction;
+
+    try {
+      if (type === "delete") {
+        if (demoMode) {
+          allThemes = allThemes.filter((t) => String(t.id) !== String(id));
+        } else {
+          const supabase = getSupabaseClient();
+          const { error } = await supabase.from("themes").delete().eq("id", id);
+          if (error) throw error;
+          allThemes = allThemes.filter((t) => String(t.id) !== String(id));
+        }
+        showToast("Tema berhasil dihapus.");
+      } else if (type === "sold") {
+        const theme = findTheme(id);
+        const newCount = (theme.purchase_count || 0) + 1;
+        if (demoMode) {
+          allThemes = allThemes.map((t) => (String(t.id) === String(id) ? { ...t, purchase_count: newCount } : t));
+        } else {
+          const supabase = getSupabaseClient();
+          const { error } = await supabase.from("themes").update({ purchase_count: newCount }).eq("id", id);
+          if (error) throw error;
+          allThemes = allThemes.map((t) => (String(t.id) === String(id) ? { ...t, purchase_count: newCount } : t));
+        }
+        showToast("Berhasil ditandai terjual.");
+      }
+      renderAll();
+    } catch (err) {
+      console.error("[Alfath] Gagal memproses aksi:", err);
+      showToast("Gagal memproses. Coba lagi ya.", true);
+    } finally {
+      closeConfirmModal();
+    }
+  }
+
+  // ==============================================================
+  // Toast
+  // ==============================================================
+  let toastTimer = null;
+  function showToast(message, isError) {
+    els.toastText.textContent = message;
+    els.toast.classList.toggle("toast--error", !!isError);
+    els.toast.classList.add("is-visible");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => els.toast.classList.remove("is-visible"), 3200);
+  }
+
+  // ==============================================================
+  // Logout
+  // ==============================================================
+  async function handleLogout() {
+    if (demoMode) {
+      window.location.href = REDIRECT_LOGIN;
+      return;
+    }
+    try {
+      const supabase = getSupabaseClient();
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error("[Alfath] Gagal logout:", err);
+    }
+    window.location.href = REDIRECT_LOGIN;
+  }
+
+  // ==============================================================
+  // Event bindings
+  // ==============================================================
+  function bindEvents() {
+    els.logoutBtn.addEventListener("click", handleLogout);
+    els.openAddModalBtn.addEventListener("click", () => openThemeModal(null));
+
+    els.themeModalClose.addEventListener("click", closeThemeModal);
+    els.themeModalCancel.addEventListener("click", closeThemeModal);
+    els.themeModalBackdrop.addEventListener("click", (e) => {
+      if (e.target === els.themeModalBackdrop) closeThemeModal();
+    });
+    els.themeForm.addEventListener("submit", handleThemeFormSubmit);
+
+    els.fTagText.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === ",") {
+        e.preventDefault();
+        addTagFromInput();
+      } else if (e.key === "Backspace" && !els.fTagText.value && tagItems.length) {
+        tagItems.pop();
+        renderTags();
+      }
+    });
+
+    els.chooseImageBtn.addEventListener("click", () => els.fImage.click());
+    els.fImage.addEventListener("change", () => {
+      const files = Array.from(els.fImage.files || []);
+      if (!files.length) return;
+
+      const room = MAX_IMAGES - (existingImages.length + selectedFiles.length);
+      if (room <= 0) {
+        showToast(`Maksimal ${MAX_IMAGES} gambar per tema.`, true);
+        els.fImage.value = "";
+        return;
+      }
+      if (files.length > room) {
+        showToast(`Hanya ${room} gambar ditambahkan (maks ${MAX_IMAGES} per tema).`, true);
+      }
+      selectedFiles.push(...files.slice(0, room));
+      renderImagePreview();
+      els.fImage.value = "";
+    });
+
+    els.confirmCancelBtn.addEventListener("click", closeConfirmModal);
+    els.confirmModalBackdrop.addEventListener("click", (e) => {
+      if (e.target === els.confirmModalBackdrop) closeConfirmModal();
+    });
+    els.confirmDangerBtn.addEventListener("click", handleConfirmed);
+    els.confirmSuccessBtn.addEventListener("click", handleConfirmed);
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      if (els.confirmModalBackdrop.classList.contains("is-open")) closeConfirmModal();
+      else if (els.themeModalBackdrop.classList.contains("is-open")) closeThemeModal();
+    });
+  }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Checkout — Alfath Theme Store</title>
+<meta name="description" content="Ringkasan pesanan tema WhatsApp kamu di Alfath Theme Store, lanjut konfirmasi via WhatsApp.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/style.css">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/sample-data.js"></script>
+<script src="js/helpers.js"></script>
+<script src="js/supabase-client.js"></script>
+</head>
+<body>
+
+<div class="page page--narrow">
+
+  <a href="daftar-tema.html" class="back-link">
+    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M12.5 4.5L6 10l6.5 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Kembali ke Daftar Tema
+  </a>
+
+  <header class="topbar">
+    <div class="topbar__brand">
+      <h1 class="topbar__title">Checkout</h1>
+    </div>
+    <p class="topbar__tagline">Lengkapi data kamu, lalu lanjut konfirmasi via WhatsApp</p>
+  </header>
+
+  <!-- ============================================================
+       State: loading
+       ============================================================ -->
+  <div id="loadingState" class="skeleton-card" style="margin-bottom:18px;">
+    <div class="skeleton-card__media" style="aspect-ratio:16/9;"></div>
+    <div class="skeleton-card__body">
+      <div class="skeleton-line skeleton-line--wide"></div>
+      <div class="skeleton-line skeleton-line--narrow"></div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       State: tema tidak ditemukan
+       ============================================================ -->
+  <div id="notFoundState" class="empty-state hidden" style="padding-top:24px;">
+    <svg viewBox="0 0 100 100" aria-hidden="true">
+      <ellipse cx="50" cy="88" rx="26" ry="5" fill="#E7D6FB"/>
+      <path d="M30 70 Q30 40 50 38 Q70 40 70 70 Z" fill="#3B2A5E"/>
+      <circle cx="50" cy="42" r="20" fill="#3B2A5E"/>
+      <path d="M32 32 L26 14 L42 26 Z" fill="#3B2A5E"/>
+      <path d="M68 32 L74 14 L58 26 Z" fill="#3B2A5E"/>
+      <circle cx="43" cy="42" r="3.2" fill="#FFC857"/>
+      <circle cx="57" cy="42" r="3.2" fill="#FFC857"/>
+      <path d="M44 50 Q50 54 56 50" stroke="#FFC857" stroke-width="2" fill="none" stroke-linecap="round"/>
+    </svg>
+    <p class="empty-state__title">Tema tidak ditemukan</p>
+    <p class="empty-state__text">Sepertinya link-nya salah atau temanya sudah tidak tersedia. Yuk pilih tema lain dari katalog.</p>
+    <a href="daftar-tema.html" class="btn-cta" style="margin-top:16px; text-decoration:none; max-width:240px;">Lihat Daftar Tema</a>
+  </div>
+
+  <!-- ============================================================
+       State: konten checkout
+       ============================================================ -->
+  <main id="checkoutContent" class="hidden">
+
+    <!-- Ringkasan tema -->
+    <section class="order-summary">
+      <div class="order-summary__media">
+        <img id="summaryImage" src="" alt="">
+        <span class="order-summary__ribbon" id="summaryCategory"></span>
+      </div>
+      <div class="order-summary__body">
+        <h2 class="order-summary__name" id="summaryName"></h2>
+        <div class="order-summary__items" id="summaryItems"></div>
+        <div class="order-summary__footer">
+          <span class="order-summary__price" id="summaryPrice"></span>
+          <span class="sheet__rating">
+            <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 1.5l2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L1.3 7.8l6.1-.7z"/></svg>
+            <span id="summaryRating"></span>
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Form data pembeli -->
+    <section class="checkout-form">
+      <h3 class="sheet__section-title" style="font-size:16px; margin-bottom:14px;">Data Pemesan</h3>
+
+      <div class="field">
+        <label for="buyerName">Nama Lengkap</label>
+        <input type="text" id="buyerName" name="buyerName" placeholder="Nama kamu" autocomplete="name" required>
+      </div>
+
+      <div class="field">
+        <label for="buyerPhone">Nomor WhatsApp</label>
+        <input type="tel" id="buyerPhone" name="buyerPhone" placeholder="08xxxxxxxxxx" autocomplete="tel" required>
+        <span class="field__hint">Pastikan nomor ini aktif di WhatsApp, ya.</span>
+      </div>
+
+      <p class="checkout-note">
+        Setelah klik tombol di bawah, kamu akan diarahkan ke chat WhatsApp seller dengan pesan yang sudah otomatis terisi. Pembayaran &amp; pengiriman file tema dikonfirmasi langsung lewat chat.
+      </p>
+
+      <p class="field-error hidden" id="formError">Mohon isi nama dan nomor WhatsApp terlebih dahulu ya.</p>
+
+      <button type="button" class="btn-cta" id="checkoutSubmitBtn">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5.1-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1-.2.2-.7.8-.8 1-.2.2-.3.2-.5.1-.2-.1-1-.4-1.9-1.2-.7-.6-1.2-1.4-1.3-1.6-.2-.2 0-.4.1-.5.1-.1.2-.3.4-.4.1-.1.2-.2.2-.4.1-.2 0-.3 0-.5s-.6-1.5-.8-2c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.2.2-.9.9-.9 2.2 0 1.3.9 2.6 1.1 2.8.1.2 1.8 2.8 4.4 3.9.6.3 1.1.4 1.5.5.6.2 1.2.2 1.6.1.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.2-.2-.5-.3z"/></svg>
+        Pesan via WhatsApp
+      </button>
+    </section>
+
+  </main>
+
+</div>
+
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const themeId = params.get("id");
+
+  const els = {
+    loading: document.getElementById("loadingState"),
+    notFound: document.getElementById("notFoundState"),
+    content: document.getElementById("checkoutContent"),
+    summaryImage: document.getElementById("summaryImage"),
+    summaryCategory: document.getElementById("summaryCategory"),
+    summaryName: document.getElementById("summaryName"),
+    summaryItems: document.getElementById("summaryItems"),
+    summaryPrice: document.getElementById("summaryPrice"),
+    summaryRating: document.getElementById("summaryRating"),
+    buyerName: document.getElementById("buyerName"),
+    buyerPhone: document.getElementById("buyerPhone"),
+    formError: document.getElementById("formError"),
+    submitBtn: document.getElementById("checkoutSubmitBtn"),
+  };
+
+  let currentTheme = null;
+
+  init();
+
+  async function init() {
+    if (!themeId) {
+      showNotFound();
+      return;
+    }
+
+    try {
+      currentTheme = await loadTheme(themeId);
+    } catch (err) {
+      console.error("[Alfath] Gagal memuat tema untuk checkout:", err);
+      currentTheme = null;
+    }
+
+    if (!currentTheme) {
+      showNotFound();
+      return;
+    }
+
+    renderSummary(currentTheme);
+    bindFormEvents();
+    els.loading.classList.add("hidden");
+    els.content.classList.remove("hidden");
+  }
+
+  // ------------------------------------------------------------
+  // Data loading
+  // ------------------------------------------------------------
+  async function loadTheme(id) {
+    if (!isSupabaseConfigured()) {
+      console.warn("[Alfath] Supabase belum dikonfigurasi. Mencari tema dari data contoh.");
+      return window.findSampleThemeById(id);
+    }
+
+    try {
+      const supabase = getSupabaseClient();
+      const { data, error } = await supabase
+        .from("themes")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (err) {
+      console.error("[Alfath] Gagal mengambil tema dari Supabase, coba data contoh:", err);
+      return window.findSampleThemeById(id);
+    }
+  }
+
+  // ------------------------------------------------------------
+  // Render ringkasan
+  // ------------------------------------------------------------
+  function renderSummary(theme) {
+    els.summaryImage.src = theme.thumbnail_url;
+    els.summaryImage.alt = `Preview tema ${theme.name}`;
+    els.summaryCategory.textContent = theme.category;
+    els.summaryName.textContent = theme.name;
+    els.summaryItems.innerHTML = (theme.package_items || [])
+      .map((item) => `<span class="theme-card__item-tag">${escapeHtml(item)}</span>`)
+      .join("");
+    els.summaryPrice.textContent = formatRupiah(theme.price);
+    els.summaryRating.textContent = formatRating(theme.rating);
+  }
+
+  function showNotFound() {
+    els.loading.classList.add("hidden");
+    els.content.classList.add("hidden");
+    els.notFound.classList.remove("hidden");
+  }
+
+  // ------------------------------------------------------------
+  // Form & redirect WhatsApp
+  // ------------------------------------------------------------
+  function bindFormEvents() {
+    els.submitBtn.addEventListener("click", handleSubmit);
+    [els.buyerName, els.buyerPhone].forEach((input) => {
+      input.addEventListener("input", () => els.formError.classList.add("hidden"));
+    });
+  }
+
+  function handleSubmit() {
+    const name = els.buyerName.value.trim();
+    const phone = els.buyerPhone.value.trim();
+
+    if (!name || !phone) {
+      els.formError.classList.remove("hidden");
+      (!name ? els.buyerName : els.buyerPhone).focus();
+      return;
+    }
+
+    const waUrl = buildWhatsAppUrl(currentTheme, name, phone);
+    window.location.href = waUrl;
+  }
+
+  function buildWhatsAppUrl(theme, name, phone) {
+    const sellerNumber = (window.ALFATH_CONFIG && window.ALFATH_CONFIG.SELLER_WHATSAPP_NUMBER) || "";
+    const items = (theme.package_items || []).join(", ");
+
+    const message =
+      `Halo kak, saya mau pesan tema *${theme.name}* (${theme.category}) seharga ${formatRupiah(theme.price)}.\n\n` +
+      `Detail pesanan:\n` +
+      `- Nama: ${name}\n` +
+      `- No. WhatsApp: ${phone}\n` +
+      `- Isi paket: ${items}\n\n` +
+      `Mohon info langkah selanjutnya ya. Terima kasih!`;
+
+    return `https://wa.me/${encodeURIComponent(sellerNumber)}?text=${encodeURIComponent(message)}`;
+  }
+</script>
+
+</body>
+</html>
