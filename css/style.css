@@ -1655,6 +1655,13 @@ a {
   opacity:0;
   transition:.3s;
   z-index:99999;
+  touch-action: pan-x;
+  overscroll-behavior: contain;
+}
+
+.image-viewer img{
+  user-select:none;
+  -webkit-user-drag:none;
 }
 
 .image-viewer.show{

@@ -478,6 +478,14 @@
     carouselIndex = index;
     els.viewer.classList.add("show");
     updateViewer();
+    let viewerTouchStart = 0;
+    let viewerTouchEnd = 0;
+
+    els.viewer.addEventListener("click", e => {
+    if(e.target === els.viewer){
+        closeViewer();
+    }
+    });
   }
 
   function closeViewer(){
@@ -548,6 +556,38 @@
     els.viewerClose.onclick = closeViewer;
     els.viewerPrev.onclick = prevViewer;
     els.viewerNext.onclick = nextViewer;
+    // ===========================
+// Swipe Fullscreen Viewer
+// ===========================
+
+let viewerTouchStartX = 0;
+let viewerTouchEndX = 0;
+
+els.viewer.addEventListener("touchstart", (e) => {
+
+    if (!els.viewer.classList.contains("show")) return;
+
+    viewerTouchStartX = e.changedTouches[0].clientX;
+
+}, { passive:true });
+
+els.viewer.addEventListener("touchend", (e) => {
+
+    if (!els.viewer.classList.contains("show")) return;
+
+    viewerTouchEndX = e.changedTouches[0].clientX;
+
+    const diff = viewerTouchStartX - viewerTouchEndX;
+
+    if (Math.abs(diff) < 60) return;
+
+    if (diff > 0) {
+        nextViewer();
+    } else {
+        prevViewer();
+    }
+
+}, { passive:true });
     document.addEventListener("keydown",(e)=>{
 
     if(!els.viewer.classList.contains("show"))
