@@ -1858,3 +1858,167 @@ a {
   white-space: nowrap;
   border: 0;
 }
+/* ============================================================
+   Varian tema — dashboard (manajemen) & bottom-sheet (pemilihan)
+   ============================================================ */
+
+/* --- Dashboard: baris manajemen varian --- */
+
+.variant-manager {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.variant-row {
+  position: relative;
+  border: 1.5px solid var(--lavender-deep);
+  background: var(--lavender);
+  border-radius: 18px;
+  padding: 16px 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.variant-row__remove {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(194, 78, 99, 0.14);
+  color: #C24E63;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease;
+}
+
+.variant-row__remove:hover:not(:disabled) {
+  transform: scale(1.08);
+}
+
+.variant-row__remove:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.variant-row__fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding-right: 30px;
+}
+
+.variant-row__fields input {
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--twilight);
+  background: var(--parchment);
+  border: 1.5px solid var(--lavender-deep);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.variant-row__fields input:focus {
+  outline: none;
+  border-color: var(--periwinkle);
+}
+
+.variant-row__images-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--twilight-soft);
+}
+
+.btn-add-variant {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  border: 1.5px dashed var(--periwinkle);
+  background: transparent;
+  color: var(--periwinkle);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 13.5px;
+  padding: 11px 14px;
+  border-radius: 100px;
+  transition: background 0.15s ease;
+}
+
+.btn-add-variant:hover {
+  background: rgba(180, 167, 245, 0.14);
+}
+
+.btn-add-variant svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* --- Bottom-sheet: pilihan varian buat customer --- */
+
+.sheet__variants {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.variant-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  border: 1.5px solid var(--lavender-deep);
+  background: var(--parchment);
+  border-radius: 14px;
+  padding: 8px 14px;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.variant-pill:hover {
+  transform: translateY(-1px);
+}
+
+.variant-pill__label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--twilight);
+}
+
+.variant-pill__price {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--twilight-soft);
+}
+
+.variant-pill.is-active {
+  border-color: var(--peony-deep);
+  background: linear-gradient(135deg, rgba(255, 143, 177, 0.12), rgba(255, 107, 157, 0.12));
+}
+
+.variant-pill.is-active .variant-pill__price {
+  color: var(--peony-deep);
+}
+
+/* --- Checkout: badge nama varian terpilih --- */
+
+.order-summary__variant-badge {
+  display: inline-flex;
+  align-items: center;
+  background: var(--mint);
+  color: #1f4a3a;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 100px;
+  margin: -2px 0 10px;
+}
