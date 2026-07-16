@@ -119,30 +119,24 @@
 
       <div class="field-row">
         <div class="field">
-          <label for="fCategory">Kategori</label>
+          <label for="fCategory">Kategori Produk</label>
               <select id="fCategory" required>
               <option value="" disabled selected hidden></option>
-              <option value="Whatsapp GB Full Emoji">Whatsapp GB Full Emoji</option>
-              <option value="Whatsapp GB Emoji Polos">Whatsapp GB Emoji Polos</option>
-              <option value="Whatsapp Univ Full Emoji">Whatsapp Univ Full Emoji</option>
-              <option value="Whatsapp Univ Emoji Polos">Whatsapp Univ Emoji Polos</option>
+              <option value="Paket Lengkap">Paket Lengkap</option>
+              <option value="Wallpaper">Wallpaper</option>
+              <option value="Font">Font</option>
+              <option value="Set Ikon">Set Ikon</option>
             </select>
         </div>
-        <div class="field">
-          <label for="fPrice">Harga (Rp)</label>
-          <input type="number" id="fPrice" min="0" step="500" placeholder="25000" required>
-        </div>
-      </div>
-
-      <div class="field-row">
         <div class="field">
           <label for="fRating">Rating (0–5)</label>
           <input type="number" id="fRating" min="0" max="5" step="0.1" placeholder="4.8" required>
         </div>
-        <div class="field">
-          <label for="fSold">Jumlah Terjual</label>
-          <input type="number" id="fSold" min="0" step="1" placeholder="0">
-        </div>
+      </div>
+
+      <div class="field">
+        <label for="fSold">Jumlah Terjual (total semua varian)</label>
+        <input type="number" id="fSold" min="0" step="1" placeholder="0">
       </div>
 
       <div class="field">
@@ -159,18 +153,14 @@
       </div>
 
       <div class="field">
-        <label>Gambar Preview</label>
-        <div class="image-upload" style="align-items:flex-start; flex-direction:column; gap:10px;">
-          <div id="imagePreviewGrid" class="image-upload__grid"></div>
-          <div>
-            <button type="button" class="image-upload__btn" id="chooseImageBtn">
-              <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 13.5V3.5M10 3.5L6 7.5M10 3.5l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.5 13.5v2.2a1.3 1.3 0 0 0 1.3 1.3h10.4a1.3 1.3 0 0 0 1.3-1.3v-2.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-              Tambah Gambar
-            </button>
-            <p class="image-upload__info">JPG/PNG/WebP, maks 3MB per gambar, maks 5 gambar. Gambar pertama jadi cover di katalog.</p>
-          </div>
-          <input type="file" id="fImage" accept="image/png,image/jpeg,image/webp" class="hidden" multiple>
-        </div>
+        <label>Varian (kategori WA &amp; harga)</label>
+        <p class="field__hint" style="margin-bottom:10px;">Satu tema bisa punya beberapa varian, mis. beda versi aplikasi atau gaya emoji — tiap varian punya harga &amp; galeri fotonya sendiri.</p>
+        <div class="variant-manager" id="variantManager"></div>
+        <button type="button" class="btn-add-variant" id="addVariantBtn" style="margin-top:10px;">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          Tambah Varian
+        </button>
+        <input type="file" id="fVariantImage" accept="image/png,image/jpeg,image/webp" class="hidden" multiple>
       </div>
 
       <p class="field-error hidden" id="formError"></p>
@@ -237,15 +227,14 @@
     themeForm: document.getElementById("themeForm"),
     fName: document.getElementById("fName"),
     fCategory: document.getElementById("fCategory"),
-    fPrice: document.getElementById("fPrice"),
     fRating: document.getElementById("fRating"),
     fSold: document.getElementById("fSold"),
     fDesc: document.getElementById("fDesc"),
-    fImage: document.getElementById("fImage"),
     tagInput: document.getElementById("tagInput"),
     fTagText: document.getElementById("fTagText"),
-    chooseImageBtn: document.getElementById("chooseImageBtn"),
-    imagePreviewGrid: document.getElementById("imagePreviewGrid"),
+    variantManager: document.getElementById("variantManager"),
+    addVariantBtn: document.getElementById("addVariantBtn"),
+    fVariantImage: document.getElementById("fVariantImage"),
     formError: document.getElementById("formError"),
     themeSubmitBtn: document.getElementById("themeSubmitBtn"),
     themeSubmitLabel: document.getElementById("themeSubmitLabel"),
@@ -274,10 +263,24 @@
   let currentUser = null;
   let editingThemeId = null;
   let tagItems = [];
-  let existingImages = [];  // URL gambar lama (mode edit)
-  let selectedFiles = [];   // File baru yang mau diupload
-  const MAX_IMAGES = 5;
+  const MAX_IMAGES = 5; // maks gambar per varian
   let pendingAction = null; // { type: 'delete'|'sold', id }
+
+  // Tiap tema sekarang bisa punya beberapa varian (kategori WA + harga),
+  // dan tiap varian punya galeri fotonya sendiri.
+  // Bentuk 1 baris: { id, label, price, existingImages: [url], selectedFiles: [File] }
+  let variantRows = [];
+  let activeVariantIndex = null; // baris mana yang lagi nunggu file dari fVariantImage
+
+  function makeEmptyVariantRow() {
+    return {
+      id: "v" + Date.now() + Math.random().toString(36).slice(2, 6),
+      label: "",
+      price: "",
+      existingImages: [],
+      selectedFiles: [],
+    };
+  }
 
   init();
 
@@ -365,7 +368,9 @@
   function renderStats() {
     const total = allThemes.length;
     const totalSold = allThemes.reduce((sum, t) => sum + (Number(t.purchase_count) || 0), 0);
-    const omzet = allThemes.reduce((sum, t) => sum + (Number(t.purchase_count) || 0) * (Number(t.price) || 0), 0);
+    // Catatan: jumlah terjual masih agregat per tema (bukan per varian),
+    // jadi omzet di sini estimasi pakai rata-rata harga varian tiap tema.
+    const omzet = allThemes.reduce((sum, t) => sum + (Number(t.purchase_count) || 0) * getAveragePrice(t), 0);
     const avgRating = total ? allThemes.reduce((sum, t) => sum + (Number(t.rating) || 0), 0) / total : 0;
 
     els.statTotalTema.textContent = total;
@@ -417,7 +422,8 @@
           <h3 class="manage-card__name">${escapeHtml(theme.name)}</h3>
           <div class="manage-card__meta">
             <span class="manage-card__ribbon">${escapeHtml(theme.category || '-')}</span>
-            <span class="price">${formatRupiah(theme.price)}</span>
+            <span class="price">${formatPriceRange(theme)}</span>
+            <span>${getThemeVariants(theme).length} varian</span>
             <span class="rating">
               <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 1.5l2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L1.3 7.8l6.1-.7z"/></svg>
               ${formatRating(theme.rating)}
@@ -450,26 +456,33 @@
   // ==============================================================
   function openThemeModal(theme) {
     editingThemeId = theme ? theme.id : null;
-    selectedFiles = [];
-    existingImages = theme && Array.isArray(theme.preview_images) && theme.preview_images.length
-      ? [...theme.preview_images]
-      : (theme && theme.thumbnail_url ? [theme.thumbnail_url] : []);
     tagItems = theme && Array.isArray(theme.package_items) ? [...theme.package_items] : [];
+
+    const existingVariants = theme ? getThemeVariants(theme) : [];
+    variantRows = existingVariants.length
+      ? existingVariants.map((v) => ({
+          id: v.id || makeEmptyVariantRow().id,
+          label: v.label || "",
+          price: v.price ?? "",
+          existingImages: Array.isArray(v.preview_images) ? [...v.preview_images] : [],
+          selectedFiles: [],
+        }))
+      : [makeEmptyVariantRow()];
+    activeVariantIndex = null;
 
     els.themeModalTitle.textContent = theme ? "Edit Tema" : "Tambah Tema";
     els.themeSubmitLabel.textContent = theme ? "Simpan Perubahan" : "Simpan Tema";
 
     els.fName.value = theme ? theme.name || "" : "";
     els.fCategory.value = theme ? theme.category || "" : "";
-    els.fPrice.value = theme ? theme.price ?? "" : "";
     els.fRating.value = theme ? theme.rating ?? "" : "";
     els.fSold.value = theme ? theme.purchase_count ?? 0 : 0;
     els.fDesc.value = theme ? theme.description || "" : "";
-    els.fImage.value = "";
+    els.fVariantImage.value = "";
     els.formError.classList.add("hidden");
 
     renderTags();
-    renderImagePreview();
+    renderVariantRows();
 
     els.themeModalBackdrop.classList.add("is-open");
     document.body.style.overflow = "hidden";
@@ -505,39 +518,104 @@
     els.fTagText.value = "";
   }
 
-  function renderImagePreview() {
-    const grid = els.imagePreviewGrid;
+  // ==============================================================
+  // Variant manager (label + harga + galeri per varian)
+  // ==============================================================
+  function renderVariantRows() {
+    const container = els.variantManager;
+    container.innerHTML = "";
+
+    variantRows.forEach((row, idx) => {
+      const rowEl = document.createElement("div");
+      rowEl.className = "variant-row";
+      rowEl.innerHTML = `
+        <button type="button" class="variant-row__remove" data-remove-variant="${idx}" aria-label="Hapus varian ini" ${variantRows.length <= 1 ? "disabled" : ""}>✕</button>
+        <div class="variant-row__fields">
+          <div class="field" style="margin-bottom:0;">
+            <label>Nama Varian</label>
+            <input type="text" data-variant-label="${idx}" placeholder="mis. GB Full Emoji" value="${escapeAttr(row.label)}">
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label>Harga (Rp)</label>
+            <input type="number" min="0" step="500" data-variant-price="${idx}" placeholder="25000" value="${escapeAttr(row.price)}">
+          </div>
+        </div>
+        <div>
+          <span class="variant-row__images-label">Foto varian ini</span>
+          <div class="image-upload__grid" data-variant-grid="${idx}" style="margin-top:8px;"></div>
+          <button type="button" class="image-upload__btn" data-variant-add-image="${idx}" style="margin-top:8px;">
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 13.5V3.5M10 3.5L6 7.5M10 3.5l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.5 13.5v2.2a1.3 1.3 0 0 0 1.3 1.3h10.4a1.3 1.3 0 0 0 1.3-1.3v-2.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            Tambah Foto
+          </button>
+        </div>
+      `;
+      container.appendChild(rowEl);
+      renderVariantImageGrid(idx);
+    });
+
+    // Bind input & tombol tiap baris (di-render ulang tiap kali, jadi aman)
+    container.querySelectorAll("[data-variant-label]").forEach((input) => {
+      input.addEventListener("input", () => {
+        variantRows[Number(input.dataset.variantLabel)].label = input.value;
+      });
+    });
+    container.querySelectorAll("[data-variant-price]").forEach((input) => {
+      input.addEventListener("input", () => {
+        variantRows[Number(input.dataset.variantPrice)].price = input.value;
+      });
+    });
+    container.querySelectorAll("[data-remove-variant]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (variantRows.length <= 1) return;
+        variantRows.splice(Number(btn.dataset.removeVariant), 1);
+        renderVariantRows();
+      });
+    });
+    container.querySelectorAll("[data-variant-add-image]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        activeVariantIndex = Number(btn.dataset.variantAddImage);
+        els.fVariantImage.click();
+      });
+    });
+  }
+
+  function renderVariantImageGrid(idx) {
+    const row = variantRows[idx];
+    const grid = els.variantManager.querySelector(`[data-variant-grid="${idx}"]`);
+    if (!grid) return;
     grid.innerHTML = "";
 
-    if (existingImages.length === 0 && selectedFiles.length === 0) {
+    if (row.existingImages.length === 0 && row.selectedFiles.length === 0) {
       grid.innerHTML = `
-        <div class="image-upload__preview">
+        <div class="image-upload__preview" style="width:64px; height:64px;">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2.5" stroke="currentColor" stroke-width="1.6"/><circle cx="8.5" cy="9.5" r="1.6" stroke="currentColor" stroke-width="1.6"/><path d="M21 15l-5.5-5-9.5 9" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
         </div>`;
       return;
     }
 
-    existingImages.forEach((url, idx) => {
-      grid.appendChild(makeImageThumb(url, idx === 0, () => {
-        existingImages.splice(idx, 1);
-        renderImagePreview();
+    row.existingImages.forEach((url, i) => {
+      grid.appendChild(makeVariantImageThumb(url, i === 0, () => {
+        row.existingImages.splice(i, 1);
+        renderVariantImageGrid(idx);
       }));
     });
 
-    selectedFiles.forEach((file, idx) => {
+    row.selectedFiles.forEach((file, i) => {
       const url = URL.createObjectURL(file);
-      const isCover = existingImages.length === 0 && idx === 0;
-      grid.appendChild(makeImageThumb(url, isCover, () => {
-        selectedFiles.splice(idx, 1);
-        renderImagePreview();
+      const isCover = row.existingImages.length === 0 && i === 0;
+      grid.appendChild(makeVariantImageThumb(url, isCover, () => {
+        row.selectedFiles.splice(i, 1);
+        renderVariantImageGrid(idx);
       }));
     });
   }
 
-  function makeImageThumb(url, isCover, onRemove) {
+  function makeVariantImageThumb(url, isCover, onRemove) {
     const div = document.createElement("div");
     div.className = "image-upload__thumb" + (isCover ? " image-upload__thumb--cover" : "");
-    div.innerHTML = `<img src="${escapeAttr(url)}" alt="Preview tema"><button type="button" aria-label="Hapus gambar ini">✕</button>`;
+    div.style.width = "64px";
+    div.style.height = "64px";
+    div.innerHTML = `<img src="${escapeAttr(url)}" alt="Preview varian"><button type="button" aria-label="Hapus gambar ini">✕</button>`;
     div.querySelector("button").addEventListener("click", onRemove);
     return div;
   }
@@ -549,41 +627,65 @@
 
     const name = els.fName.value.trim();
     const category = els.fCategory.value.trim();
-    const price = Number(els.fPrice.value);
     const rating = Number(els.fRating.value);
     const purchase_count = Number(els.fSold.value) || 0;
     const description = els.fDesc.value.trim();
 
-    if (!name || !category || !els.fPrice.value || !els.fRating.value) {
-      showFormError("Mohon lengkapi nama, kategori, harga, dan rating.");
+    if (!name || !category || !els.fRating.value) {
+      showFormError("Mohon lengkapi nama, kategori, dan rating.");
       return;
     }
     if (rating < 0 || rating > 5) {
       showFormError("Rating harus di antara 0 sampai 5.");
       return;
     }
-    if (existingImages.length + selectedFiles.length === 0) {
-      showFormError("Tambahkan minimal 1 gambar preview.");
+    if (variantRows.length === 0) {
+      showFormError("Tambahkan minimal 1 varian.");
       return;
     }
-    if (selectedFiles.some((f) => f.size > 3 * 1024 * 1024)) {
-      showFormError("Ada gambar yang ukurannya lebih dari 3MB.");
-      return;
+    for (const row of variantRows) {
+      if (!row.label.trim()) {
+        showFormError("Setiap varian wajib punya nama (mis. GB Full Emoji).");
+        return;
+      }
+      if (!row.price || Number(row.price) <= 0) {
+        showFormError(`Harga varian "${row.label}" belum diisi dengan benar.`);
+        return;
+      }
+      if (row.existingImages.length + row.selectedFiles.length === 0) {
+        showFormError(`Varian "${row.label}" butuh minimal 1 gambar preview.`);
+        return;
+      }
+      if (row.selectedFiles.some((f) => f.size > 3 * 1024 * 1024)) {
+        showFormError(`Ada gambar di varian "${row.label}" yang ukurannya lebih dari 3MB.`);
+        return;
+      }
     }
 
     setSaving(true);
 
     try {
-      const uploadedUrls = [];
-      for (const file of selectedFiles) {
-        uploadedUrls.push(await uploadImage(file));
+      const variants = [];
+      for (const row of variantRows) {
+        const uploadedUrls = [];
+        for (const file of row.selectedFiles) {
+          uploadedUrls.push(await uploadImage(file));
+        }
+        variants.push({
+          id: row.id,
+          label: row.label.trim(),
+          price: Number(row.price),
+          preview_images: [...row.existingImages, ...uploadedUrls],
+        });
       }
-      const preview_images = [...existingImages, ...uploadedUrls];
-      const thumbnail_url = preview_images[0] || "https://images.unsplash.com/photo-1499346030926-9a72daac6c63?w=600&h=450&fit=crop";
+
+      const thumbnail_url =
+        (variants[0] && variants[0].preview_images[0]) ||
+        "https://images.unsplash.com/photo-1499346030926-9a72daac6c63?w=600&h=450&fit=crop";
 
       const payload = {
-        name, category, price, rating, purchase_count, description,
-        package_items: tagItems, thumbnail_url, preview_images,
+        name, category, rating, purchase_count, description,
+        package_items: tagItems, thumbnail_url, variants,
       };
 
       if (demoMode) {
@@ -776,23 +878,29 @@
       }
     });
 
-    els.chooseImageBtn.addEventListener("click", () => els.fImage.click());
-    els.fImage.addEventListener("change", () => {
-      const files = Array.from(els.fImage.files || []);
-      if (!files.length) return;
+    els.addVariantBtn.addEventListener("click", () => {
+      variantRows.push(makeEmptyVariantRow());
+      renderVariantRows();
+    });
 
-      const room = MAX_IMAGES - (existingImages.length + selectedFiles.length);
+    els.fVariantImage.addEventListener("change", () => {
+      const files = Array.from(els.fVariantImage.files || []);
+      if (!files.length || activeVariantIndex === null) return;
+      const row = variantRows[activeVariantIndex];
+      if (!row) return;
+
+      const room = MAX_IMAGES - (row.existingImages.length + row.selectedFiles.length);
       if (room <= 0) {
-        showToast(`Maksimal ${MAX_IMAGES} gambar per tema.`, true);
-        els.fImage.value = "";
+        showToast(`Maksimal ${MAX_IMAGES} gambar per varian.`, true);
+        els.fVariantImage.value = "";
         return;
       }
       if (files.length > room) {
-        showToast(`Hanya ${room} gambar ditambahkan (maks ${MAX_IMAGES} per tema).`, true);
+        showToast(`Hanya ${room} gambar ditambahkan (maks ${MAX_IMAGES} per varian).`, true);
       }
-      selectedFiles.push(...files.slice(0, room));
-      renderImagePreview();
-      els.fImage.value = "";
+      row.selectedFiles.push(...files.slice(0, room));
+      renderVariantImageGrid(activeVariantIndex);
+      els.fVariantImage.value = "";
     });
 
     els.confirmCancelBtn.addEventListener("click", closeConfirmModal);

@@ -22,7 +22,7 @@
 
 <div class="page page--narrow">
 
-  <a href="daftar-tema.html" class="back-link">
+  <a href="index.html" class="back-link">
     <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M12.5 4.5L6 10l6.5 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
     Kembali ke Daftar Tema
   </a>
@@ -61,7 +61,7 @@
     </svg>
     <p class="empty-state__title">Tema tidak ditemukan</p>
     <p class="empty-state__text">Sepertinya link-nya salah atau temanya sudah tidak tersedia. Yuk pilih tema lain dari katalog.</p>
-    <a href="daftar-tema.html" class="btn-cta" style="margin-top:16px; text-decoration:none; max-width:240px;">Lihat Daftar Tema</a>
+    <a href="index.html" class="btn-cta" style="margin-top:16px; text-decoration:none; max-width:240px;">Lihat Daftar Tema</a>
   </div>
 
   <!-- ============================================================
@@ -77,6 +77,7 @@
       </div>
       <div class="order-summary__body">
         <h2 class="order-summary__name" id="summaryName"></h2>
+        <span class="order-summary__variant-badge hidden" id="summaryVariantBadge"></span>
         <div class="order-summary__items" id="summaryItems"></div>
         <div class="order-summary__footer">
           <span class="order-summary__price" id="summaryPrice"></span>
@@ -122,6 +123,7 @@
 <script>
   const params = new URLSearchParams(window.location.search);
   const themeId = params.get("id");
+  const variantIdParam = params.get("variant");
 
   const els = {
     loading: document.getElementById("loadingState"),
@@ -130,6 +132,7 @@
     summaryImage: document.getElementById("summaryImage"),
     summaryCategory: document.getElementById("summaryCategory"),
     summaryName: document.getElementById("summaryName"),
+    summaryVariantBadge: document.getElementById("summaryVariantBadge"),
     summaryItems: document.getElementById("summaryItems"),
     summaryPrice: document.getElementById("summaryPrice"),
     summaryRating: document.getElementById("summaryRating"),
@@ -140,6 +143,7 @@
   };
 
   let currentTheme = null;
+  let currentVariant = null;
 
   init();
 
@@ -161,7 +165,19 @@
       return;
     }
 
-    renderSummary(currentTheme);
+    // Kalau parameter varian nggak ada/nggak valid, otomatis fallback
+    // ke varian termurah supaya link lama tetap jalan.
+    currentVariant = variantIdParam
+      ? findVariantById(currentTheme, variantIdParam)
+      : getCheapestVariant(currentTheme);
+
+    if (!currentVariant) {
+      // Data tema rusak/nggak punya varian sama sekali.
+      showNotFound();
+      return;
+    }
+
+    renderSummary(currentTheme, currentVariant);
     bindFormEvents();
     els.loading.classList.add("hidden");
     els.content.classList.remove("hidden");
@@ -195,15 +211,25 @@
   // ------------------------------------------------------------
   // Render ringkasan
   // ------------------------------------------------------------
-  function renderSummary(theme) {
-    els.summaryImage.src = theme.thumbnail_url;
-    els.summaryImage.alt = `Preview tema ${theme.name}`;
+  function renderSummary(theme, variant) {
+    const images = getVariantImages(theme, variant);
+    els.summaryImage.src = images[0] || theme.thumbnail_url || "";
+    els.summaryImage.alt = `Preview tema ${theme.name} — varian ${variant.label}`;
     els.summaryCategory.textContent = theme.category;
     els.summaryName.textContent = theme.name;
+
+    const variants = getThemeVariants(theme);
+    if (variants.length > 1) {
+      els.summaryVariantBadge.textContent = `Varian: ${variant.label}`;
+      els.summaryVariantBadge.classList.remove("hidden");
+    } else {
+      els.summaryVariantBadge.classList.add("hidden");
+    }
+
     els.summaryItems.innerHTML = (theme.package_items || [])
       .map((item) => `<span class="theme-card__item-tag">${escapeHtml(item)}</span>`)
       .join("");
-    els.summaryPrice.textContent = formatRupiah(theme.price);
+    els.summaryPrice.textContent = formatRupiah(variant.price);
     els.summaryRating.textContent = formatRating(theme.rating);
   }
 
@@ -233,19 +259,21 @@
       return;
     }
 
-    const waUrl = buildWhatsAppUrl(currentTheme, name, phone);
+    const waUrl = buildWhatsAppUrl(currentTheme, currentVariant, name, phone);
     window.location.href = waUrl;
   }
 
-  function buildWhatsAppUrl(theme, name, phone) {
+  function buildWhatsAppUrl(theme, variant, name, phone) {
     const sellerNumber = (window.ALFATH_CONFIG && window.ALFATH_CONFIG.SELLER_WHATSAPP_NUMBER) || "";
     const items = (theme.package_items || []).join(", ");
+    const variants = getThemeVariants(theme);
+    const variantLine = variants.length > 1 ? `\n- Varian: ${variant.label}` : "";
 
     const message =
-      `Halo kak, saya mau pesan tema *${theme.name}* (${theme.category}) seharga ${formatRupiah(theme.price)}.\n\n` +
+      `Halo kak, saya mau pesan tema *${theme.name}* (${theme.category}) seharga ${formatRupiah(variant.price)}.\n\n` +
       `Detail pesanan:\n` +
       `- Nama: ${name}\n` +
-      `- No. WhatsApp: ${phone}\n` +
+      `- No. WhatsApp: ${phone}${variantLine}\n` +
       `- Isi paket: ${items}\n\n` +
       `Mohon info langkah selanjutnya ya. Terima kasih!`;
 

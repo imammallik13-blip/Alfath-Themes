@@ -78,6 +78,9 @@
     <h3 class="sheet__section-title">Isi paket</h3>
     <div class="sheet__items" id="sheetItems"></div>
 
+    <h3 class="sheet__section-title" id="sheetVariantsTitle">Pilih Varian</h3>
+    <div class="sheet__variants" id="sheetVariants"></div>
+
     <div class="sheet__price-row">
       <span class="sheet__price" id="sheetPrice"></span>
       <span class="sheet__sold" id="sheetSold"></span>
@@ -131,6 +134,8 @@
     sheetCategory: document.getElementById("sheetCategory"),
     sheetDesc: document.getElementById("sheetDesc"),
     sheetItems: document.getElementById("sheetItems"),
+    sheetVariantsTitle: document.getElementById("sheetVariantsTitle"),
+    sheetVariants: document.getElementById("sheetVariants"),
     sheetPrice: document.getElementById("sheetPrice"),
     sheetSold: document.getElementById("sheetSold"),
     sheetCheckoutBtn: document.getElementById("sheetCheckoutBtn"),
@@ -341,7 +346,7 @@
             ${(theme.package_items || []).map((item) => `<span class="theme-card__item-tag">${escapeHtml(item)}</span>`).join("")}
           </div>
           <div class="theme-card__footer">
-            <span class="theme-card__price">${formatRupiah(theme.price)}</span>
+            <span class="theme-card__price">${getThemeVariants(theme).length > 1 ? "Mulai " : ""}${formatRupiah(getMinPrice(theme))}</span>
             <span class="theme-card__sold">${theme.purchase_count || 0} terjual</span>
           </div>
         </div>
@@ -387,15 +392,15 @@
   // Bottom-sheet detail
   // ------------------------------------------------------------
   let currentTheme = null;
+  let currentVariant = null;
   let carouselImages = [];
   let carouselIndex = 0;
 
   function openSheet(theme) {
     currentTheme = theme;
-    const images = Array.isArray(theme.preview_images) && theme.preview_images.length
-      ? theme.preview_images
-      : [theme.thumbnail_url];
-    renderCarousel(images);
+    const variants = getThemeVariants(theme);
+    currentVariant = getCheapestVariant(theme);
+
     els.sheetName.textContent = theme.name;
     els.sheetRatingValue.textContent = formatRating(theme.rating);
     els.sheetCategory.textContent = theme.category;
@@ -403,18 +408,55 @@
     els.sheetItems.innerHTML = (theme.package_items || [])
       .map((item) => `<span class="sheet__item-tag">${escapeHtml(item)}</span>`)
       .join("");
-    els.sheetPrice.textContent = formatRupiah(theme.price);
     els.sheetSold.textContent = `${theme.purchase_count || 0} terjual`;
+
+    // Varian cuma ditampilkan kalau lebih dari 1, biar nggak berisik
+    // buat tema yang cuma punya 1 varian.
+    const showVariantPicker = variants.length > 1;
+    els.sheetVariantsTitle.classList.toggle("hidden", !showVariantPicker);
+    els.sheetVariants.classList.toggle("hidden", !showVariantPicker);
+    renderVariantPills();
+
+    applySelectedVariant();
 
     els.sheetBackdrop.classList.add("is-open");
     document.body.style.overflow = "hidden";
     els.sheetClose.focus();
   }
 
+  function renderVariantPills() {
+    const variants = getThemeVariants(currentTheme);
+    els.sheetVariants.innerHTML = variants
+      .map(
+        (v) => `
+        <button type="button" class="variant-pill ${currentVariant && String(v.id) === String(currentVariant.id) ? "is-active" : ""}" data-variant-id="${escapeAttr(v.id)}">
+          <span class="variant-pill__label">${escapeHtml(v.label)}</span>
+          <span class="variant-pill__price">${formatRupiah(v.price)}</span>
+        </button>`
+      )
+      .join("");
+
+    els.sheetVariants.querySelectorAll(".variant-pill").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        currentVariant = findVariantById(currentTheme, btn.dataset.variantId);
+        renderVariantPills();
+        applySelectedVariant();
+      });
+    });
+  }
+
+  // Update galeri & harga sesuai varian yang lagi dipilih.
+  function applySelectedVariant() {
+    const images = getVariantImages(currentTheme, currentVariant);
+    renderCarousel(images);
+    els.sheetPrice.textContent = currentVariant ? formatRupiah(currentVariant.price) : formatRupiah(getMinPrice(currentTheme));
+  }
+
   function closeSheet() {
     els.sheetBackdrop.classList.remove("is-open");
     document.body.style.overflow = "";
     currentTheme = null;
+    currentVariant = null;
   }
 
   // ------------------------------------------------------------
@@ -550,7 +592,8 @@
     });
     els.sheetCheckoutBtn.addEventListener("click", () => {
       if (!currentTheme) return;
-      window.location.href = `checkout.html?id=${encodeURIComponent(currentTheme.id)}`;
+      const variantParam = currentVariant ? `&variant=${encodeURIComponent(currentVariant.id)}` : "";
+      window.location.href = `checkout.html?id=${encodeURIComponent(currentTheme.id)}${variantParam}`;
     });
     bindCarouselEvents();
     els.viewerClose.onclick = closeViewer;
